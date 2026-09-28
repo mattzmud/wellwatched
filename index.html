@@ -1,1 +1,736 @@
-Coming Soon
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F8F6F0">
+<title>WellWatched</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F8F6F0;
+    --card: #FFFFFF;
+    --green: #4CAF50;
+    --green-dark: #3E8E41;
+    --purple: #7C3AED;
+    --text: #1A1A2E;
+    --muted: #6B7280;
+    --border: #E5E0D8;
+    --danger: #C0392B;
+    --r-card: 16px;
+    --r-input: 8px;
+    --r-modal: 24px;
+    --nav-h: 64px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Nunito Sans', system-ui, -apple-system, Segoe UI, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .brand, label, .btn, .tab-label {
+    font-family: 'Nunito', system-ui, sans-serif;
+  }
+  h1 { font-size: 1.75rem; font-weight: 800; margin: 0 0 4px; }
+  h2 { font-size: 1.25rem; font-weight: 800; margin: 0 0 12px; }
+  h3 { font-size: 1rem; font-weight: 700; margin: 0; }
+  p { margin: 0 0 12px; }
+  a { color: var(--purple); }
+  .muted { color: var(--muted); }
+  .small { font-size: 0.85rem; }
+
+  button:focus-visible, input:focus-visible, a:focus-visible {
+    outline: 3px solid rgba(124, 58, 237, 0.35);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Buttons & inputs ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border: none; border-radius: var(--r-input);
+    padding: 12px 18px; font-size: 1rem; font-weight: 700;
+    cursor: pointer; background: var(--green); color: #fff;
+  }
+  .btn:hover { background: var(--green-dark); }
+  .btn:disabled { opacity: 0.6; cursor: default; }
+  .btn.block { width: 100%; }
+  .btn.secondary { background: transparent; color: var(--text); border: 1.5px solid var(--border); }
+  .btn.secondary:hover { background: #fff; }
+  .btn.purple { background: var(--purple); }
+  .btn.small { padding: 8px 12px; font-size: 0.9rem; }
+  .link-btn {
+    background: none; border: none; padding: 0; color: var(--purple);
+    font: inherit; font-weight: 600; cursor: pointer;
+  }
+  label { display: block; font-weight: 700; font-size: 0.9rem; margin: 0 0 6px; }
+  .field { margin-bottom: 16px; }
+  .input {
+    width: 100%; padding: 12px 14px; font-size: 1rem; font-family: inherit;
+    border: 1.5px solid var(--border); border-radius: var(--r-input);
+    background: #fff; color: var(--text);
+  }
+  .input:focus { border-color: var(--purple); outline: none; }
+  .hint { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+  .msg { padding: 10px 14px; border-radius: var(--r-input); font-size: 0.9rem; margin-bottom: 16px; }
+  .msg.error { background: #FDECEA; color: var(--danger); }
+  .msg.notice { background: #EAF6EA; color: #2E6B31; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r-card); padding: 20px;
+  }
+
+  /* ---------- Auth & onboarding ---------- */
+  .auth-wrap {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px 16px;
+  }
+  .auth-box { width: 100%; max-width: 400px; }
+  .auth-brand { text-align: center; margin-bottom: 24px; }
+  .brand { font-weight: 800; font-size: 1.6rem; letter-spacing: -0.01em; }
+  .brand .w2 { color: var(--purple); }
+  .auth-tabs { display: flex; gap: 4px; background: #EFEBE3; padding: 4px; border-radius: 10px; margin-bottom: 20px; }
+  .auth-tabs button {
+    flex: 1; border: none; background: transparent; padding: 10px; border-radius: 8px;
+    font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--muted); cursor: pointer;
+  }
+  .auth-tabs button.active { background: #fff; color: var(--text); }
+  .auth-foot { text-align: center; margin-top: 16px; font-size: 0.9rem; }
+
+  .loading { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .spinner {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--green);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+
+  /* ---------- App shell ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(248, 246, 240, 0.95); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top));
+  }
+  .topbar-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+  .topnav { display: none; gap: 4px; }
+  .topnav button {
+    border: none; background: transparent; padding: 8px 14px; border-radius: 8px; cursor: pointer;
+    font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--muted);
+  }
+  .topnav button.active { background: #fff; color: var(--text); box-shadow: 0 0 0 1px var(--border); }
+
+  main {
+    max-width: 960px; margin: 0 auto; padding: 20px 16px;
+    padding-bottom: calc(var(--nav-h) + 32px + env(safe-area-inset-bottom));
+  }
+
+  .bottomnav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    background: #fff; border-top: 1px solid var(--border);
+    display: flex; padding-bottom: env(safe-area-inset-bottom);
+  }
+  .bottomnav button {
+    flex: 1; height: var(--nav-h); border: none; background: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    color: var(--muted);
+  }
+  .bottomnav button.active { color: var(--green); }
+  .bottomnav svg { width: 24px; height: 24px; }
+  .tab-label { font-size: 0.72rem; font-weight: 700; }
+
+  @media (min-width: 768px) {
+    .topnav { display: flex; }
+    .bottomnav { display: none; }
+    main { padding: 32px 24px 48px; }
+  }
+
+  .banner {
+    background: #F3EEFF; border: 1px solid #DDD0FB; color: #4C1D95;
+    border-radius: var(--r-input); padding: 10px 14px; margin-bottom: 20px;
+    display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 0.9rem;
+  }
+  .banner .actions { display: flex; gap: 12px; margin-left: auto; }
+
+  .page-head { margin-bottom: 20px; }
+  .stack > * + * { margin-top: 16px; }
+
+  /* ---------- Home: week strip ---------- */
+  .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 16px; }
+  .day {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 10px 4px; text-align: center; min-height: 84px;
+  }
+  .day .dname { font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.75rem; color: var(--muted); }
+  .day .dnum { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1.2rem; }
+  .day.today { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+  .day.today .dname { color: var(--green); }
+  @media (max-width: 420px) {
+    .day { padding: 8px 2px; min-height: 64px; }
+    .day .dnum { font-size: 1rem; }
+  }
+  .empty { text-align: center; padding: 28px 20px; }
+  .empty p { margin: 0 auto 16px; max-width: 34ch; }
+
+  /* ---------- Library ---------- */
+  .pl-row { display: flex; align-items: center; gap: 12px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+
+  /* ---------- Search ---------- */
+  .searchbar { display: flex; gap: 8px; margin-bottom: 20px; }
+  .searchbar .input { flex: 1; }
+  .results { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 16px; }
+  .result { min-width: 0; }
+  .poster {
+    width: 100%; aspect-ratio: 2 / 3; border-radius: 10px; overflow: hidden;
+    background: #EFEBE3; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border);
+  }
+  .poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .poster .ph { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 2rem; color: #C9C1B3; }
+  .result h3 { font-size: 0.95rem; margin-top: 8px; line-height: 1.3; }
+  .result .meta { font-size: 0.8rem; color: var(--muted); }
+  .pill {
+    display: inline-block; font-size: 0.7rem; font-weight: 700; font-family: 'Nunito', sans-serif;
+    padding: 1px 8px; border-radius: 999px; margin-right: 4px;
+  }
+  .pill.tv { background: #F3EEFF; color: var(--purple); }
+  .pill.movie { background: #EAF6EA; color: #2E6B31; }
+
+  /* ---------- Profile ---------- */
+  .row-between { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .toggle {
+    position: relative; width: 48px; height: 28px; flex: none; border: none; border-radius: 999px;
+    background: #D6D0C4; cursor: pointer; padding: 0;
+  }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+    border-radius: 50%; background: #fff; transition: left 0.15s;
+  }
+  .toggle.on { background: var(--green); }
+  .toggle.on::after { left: 23px; }
+  .credits p { font-size: 0.85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signOut, sendPasswordResetEmail, sendEmailVerification
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, collection, writeBatch, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+// ---------- Config ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyD7n0HTNNPsKf5-npCgZZ_ane3ryyt29R8",
+  authDomain: "wellwatched.firebaseapp.com",
+  projectId: "wellwatched",
+  storageBucket: "wellwatched.firebasestorage.app",
+  messagingSenderId: "164364358788",
+  appId: "1:164364358788:web:a7a9a271574ca7ecb29ed1"
+};
+const WORKER_URL = "https://wellwatched-worker.matt-zmud.workers.dev";
+const IMG_BASE = "https://image.tmdb.org/t/p/w342";
+const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const ICONS = {
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>',
+  library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M8 2l4 4 4-4"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+  profile: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>'
+};
+const TABS = [
+  { id: 'home', label: 'Home' },
+  { id: 'library', label: 'Library' },
+  { id: 'search', label: 'Search' },
+  { id: 'profile', label: 'Profile' }
+];
+
+// ---------- State ----------
+function savedTab() {
+  try {
+    const t = localStorage.getItem('ww_tab');
+    return TABS.some(x => x.id === t) ? t : 'home';
+  } catch (e) { return 'home'; }
+}
+
+const S = {
+  screen: 'loading',        // loading | auth | onboarding | app
+  authMode: 'login',        // login | signup | reset
+  authEmail: '',
+  tab: savedTab(),
+  user: null,
+  profile: null,
+  userDoc: null,
+  personal: null,
+  busy: false,
+  error: '',
+  notice: '',
+  search: { q: '', results: [], loading: false, error: '', done: false, reqId: 0 }
+};
+
+// ---------- Utils ----------
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function val(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
+function msgHtml() {
+  let h = '';
+  if (S.error) h += '<div class="msg error" role="alert">' + esc(S.error) + '</div>';
+  if (S.notice) h += '<div class="msg notice" role="status">' + esc(S.notice) + '</div>';
+  return h;
+}
+function authErrorText(e) {
+  const code = (e && e.code) || '';
+  const map = {
+    'auth/invalid-credential': 'That email and password don\'t match an account.',
+    'auth/invalid-email': 'Enter a valid email address.',
+    'auth/email-already-in-use': 'An account with that email already exists. Log in instead.',
+    'auth/weak-password': 'Use a password with at least 6 characters.',
+    'auth/missing-password': 'Enter your password.',
+    'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
+    'auth/network-request-failed': 'Network error. Check your connection and try again.'
+  };
+  return map[code] || (e && e.message) || 'Something went wrong.';
+}
+
+async function api(action, data) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('You are signed out.');
+  const token = await user.getIdToken();
+  const res = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify(Object.assign({ action: action }, data || {}))
+  });
+  let body = {};
+  try { body = await res.json(); } catch (e) { /* non-JSON */ }
+  if (!res.ok) throw new Error(body.error || ('Request failed (' + res.status + ')'));
+  return body;
+}
+
+// ---------- Data ----------
+async function loadAccount() {
+  const uid = S.user.uid;
+  const [pSnap, uSnap] = await Promise.all([
+    getDoc(doc(db, 'profiles', uid)),
+    getDoc(doc(db, 'users', uid))
+  ]);
+  S.profile = pSnap.exists() ? pSnap.data() : null;
+  S.userDoc = uSnap.exists() ? uSnap.data() : null;
+  S.personal = null;
+  if (S.userDoc && S.userDoc.personalPlaylistId) {
+    const plSnap = await getDoc(doc(db, 'playlists', S.userDoc.personalPlaylistId));
+    if (plSnap.exists()) S.personal = Object.assign({ id: plSnap.id }, plSnap.data());
+  }
+}
+
+// ---------- Views ----------
+function viewLoading() {
+  return '<div class="loading"><div class="spinner" aria-label="Loading"></div></div>';
+}
+
+function brandHtml() {
+  return '<div class="brand">Well<span class="w2">Watched</span></div>';
+}
+
+function viewAuth() {
+  const m = S.authMode;
+  const title = m === 'signup' ? 'Create your account' : m === 'reset' ? 'Reset your password' : 'Welcome back';
+  const cta = m === 'signup' ? 'Create account' : m === 'reset' ? 'Send reset link' : 'Log in';
+  let h = '<div class="auth-wrap"><div class="auth-box">';
+  h += '<div class="auth-brand">' + brandHtml() + '<p class="muted small">Track what you watch, together.</p></div>';
+  h += '<div class="card">';
+  if (m !== 'reset') {
+    h += '<div class="auth-tabs" role="tablist">';
+    h += '<button type="button" class="' + (m === 'login' ? 'active' : '') + '" onclick="setAuthMode(\'login\')">Log in</button>';
+    h += '<button type="button" class="' + (m === 'signup' ? 'active' : '') + '" onclick="setAuthMode(\'signup\')">Sign up</button>';
+    h += '</div>';
+  }
+  h += '<h2>' + title + '</h2>';
+  h += msgHtml();
+  h += '<form onsubmit="event.preventDefault(); submitAuth();">';
+  h += '<div class="field"><label for="authEmail">Email</label>';
+  h += '<input class="input" id="authEmail" type="email" autocomplete="email" required value="' + esc(S.authEmail) + '"></div>';
+  if (m !== 'reset') {
+    h += '<div class="field"><label for="authPassword">Password</label>';
+    h += '<input class="input" id="authPassword" type="password" required autocomplete="' + (m === 'signup' ? 'new-password' : 'current-password') + '">';
+    if (m === 'signup') h += '<div class="hint">At least 6 characters.</div>';
+    h += '</div>';
+  }
+  h += '<button class="btn block" type="submit"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Working…' : cta) + '</button>';
+  h += '</form>';
+  h += '<div class="auth-foot">';
+  if (m === 'login') h += '<button class="link-btn" type="button" onclick="setAuthMode(\'reset\')">Forgot your password?</button>';
+  if (m === 'reset') h += '<button class="link-btn" type="button" onclick="setAuthMode(\'login\')">Back to log in</button>';
+  h += '</div>';
+  h += '</div></div></div>';
+  return h;
+}
+
+function viewOnboarding() {
+  let h = '<div class="auth-wrap"><div class="auth-box">';
+  h += '<div class="auth-brand">' + brandHtml() + '</div>';
+  h += '<div class="card">';
+  h += '<h2>Set up your profile</h2>';
+  h += '<p class="muted small">Your username is how people find you to share playlists. Your email stays private.</p>';
+  h += msgHtml();
+  h += '<form onsubmit="event.preventDefault(); completeOnboarding();">';
+  h += '<div class="field"><label for="obName">Display name</label>';
+  h += '<input class="input" id="obName" maxlength="40" autocomplete="name" required></div>';
+  h += '<div class="field"><label for="obUsername">Username</label>';
+  h += '<input class="input" id="obUsername" maxlength="20" autocapitalize="none" autocomplete="username" spellcheck="false" required oninput="this.value=this.value.toLowerCase()">';
+  h += '<div class="hint">3–20 characters: lowercase letters, numbers, and underscores. You can\'t change it later yet.</div></div>';
+  h += '<button class="btn block" type="submit"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Saving…' : 'Continue') + '</button>';
+  h += '</form>';
+  h += '<div class="auth-foot"><button class="link-btn" type="button" onclick="doSignOut()">Log out</button></div>';
+  h += '</div></div></div>';
+  return h;
+}
+
+function viewShell() {
+  let h = '<header class="topbar"><div class="topbar-inner">' + brandHtml() + '<nav class="topnav">';
+  TABS.forEach(t => {
+    h += '<button type="button" class="' + (S.tab === t.id ? 'active' : '') + '" onclick="setTab(\'' + t.id + '\')">' + t.label + '</button>';
+  });
+  h += '</nav></div></header>';
+
+  h += '<main>';
+  if (S.user && !S.user.emailVerified) {
+    h += '<div class="banner"><span>Check your inbox to verify your email.</span>';
+    h += '<span class="actions"><button class="link-btn" onclick="resendVerification()">Resend email</button>';
+    h += '<button class="link-btn" onclick="refreshVerification()">I\'ve verified</button></span></div>';
+  }
+  if (S.tab === 'home') h += viewHome();
+  else if (S.tab === 'library') h += viewLibrary();
+  else if (S.tab === 'search') h += viewSearch();
+  else h += viewProfile();
+  h += '</main>';
+
+  h += '<nav class="bottomnav">';
+  TABS.forEach(t => {
+    h += '<button type="button" class="' + (S.tab === t.id ? 'active' : '') + '" onclick="setTab(\'' + t.id + '\')" aria-label="' + t.label + '">';
+    h += ICONS[t.id] + '<span class="tab-label">' + t.label + '</span></button>';
+  });
+  h += '</nav>';
+  return h;
+}
+
+function viewHome() {
+  const name = S.profile ? S.profile.displayName : '';
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  let h = '<div class="page-head"><h1>Hi, ' + esc(name) + '</h1><p class="muted">Here\'s your week.</p></div>';
+  h += msgHtml();
+  h += '<div class="week">';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const isToday = d.toDateString() === today.toDateString();
+    h += '<div class="day' + (isToday ? ' today' : '') + '"><div class="dname">' + dayNames[i] + '</div><div class="dnum">' + d.getDate() + '</div></div>';
+  }
+  h += '</div>';
+  h += '<div class="card empty"><h3>Nothing on your calendar yet</h3>';
+  h += '<p class="muted">Find a show you\'re watching and new episodes will show up here on the day they drop.</p>';
+  h += '<button class="btn" onclick="setTab(\'search\')">Find a show</button></div>';
+  return h;
+}
+
+function viewLibrary() {
+  let h = '<div class="page-head"><h1>Library</h1><p class="muted">Your playlists.</p></div>';
+  h += msgHtml();
+  if (S.personal) {
+    h += '<div class="card pl-row"><span class="dot" style="background:' + esc(S.personal.color || '#4CAF50') + '"></span>';
+    h += '<div><h3>' + esc(S.personal.name) + '</h3><div class="muted small">Just you</div></div></div>';
+  } else {
+    h += '<div class="card empty"><p class="muted">Your list couldn\'t be loaded. Refresh the page to try again.</p></div>';
+  }
+  return h;
+}
+
+function viewSearch() {
+  let h = '<div class="page-head"><h1>Search</h1><p class="muted">Shows and movies.</p></div>';
+  h += '<form class="searchbar" onsubmit="event.preventDefault(); runSearch();">';
+  h += '<input class="input" id="searchInput" type="search" placeholder="Search by title" autocomplete="off" value="' + esc(S.search.q) + '">';
+  h += '<button class="btn" type="submit">Search</button></form>';
+  h += '<div id="searchResults">' + searchResultsHtml() + '</div>';
+  return h;
+}
+
+function searchResultsHtml() {
+  const s = S.search;
+  if (s.loading) return '<div class="loading" style="min-height:160px"><div class="spinner" aria-label="Searching"></div></div>';
+  if (s.error) return '<div class="msg error" role="alert">' + esc(s.error) + '</div>';
+  if (!s.done) return '';
+  if (!s.results.length) return '<div class="card empty"><p class="muted">No shows or movies match "' + esc(s.q) + '". Check the spelling or try a shorter title.</p></div>';
+  let h = '<div class="results">';
+  s.results.forEach(r => {
+    const initial = (r.title || '?').charAt(0).toUpperCase();
+    h += '<div class="result"><div class="poster">';
+    h += r.posterPath
+      ? '<img loading="lazy" src="' + IMG_BASE + esc(r.posterPath) + '" alt="' + esc(r.title) + ' poster">'
+      : '<span class="ph">' + esc(initial) + '</span>';
+    h += '</div><h3>' + esc(r.title) + '</h3>';
+    h += '<div class="meta"><span class="pill ' + (r.mediaType === 'tv' ? 'tv">TV' : 'movie">Movie') + '</span>' + esc(r.year) + '</div></div>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function renderSearchResults() {
+  const el = document.getElementById('searchResults');
+  if (el) el.innerHTML = searchResultsHtml();
+}
+
+function viewProfile() {
+  const p = S.profile || {};
+  let h = '<div class="page-head"><h1>Profile</h1></div>';
+  h += msgHtml();
+  h += '<div class="stack">';
+  h += '<div class="card"><h2 style="margin-bottom:2px">' + esc(p.displayName) + '</h2>';
+  h += '<div class="muted">@' + esc(p.username) + '</div>';
+  h += '<p class="small muted" style="margin:12px 0 0">' + esc(S.user ? S.user.email : '') + (S.user && S.user.emailVerified ? ' (verified)' : ' (not verified)') + '</p></div>';
+
+  h += '<div class="card row-between"><div><h3>Let people find me</h3>';
+  h += '<div class="small muted">Others can search your username to invite you to a playlist.</div></div>';
+  h += '<button type="button" class="toggle' + (p.discoverable ? ' on' : '') + '" role="switch" aria-checked="' + (p.discoverable ? 'true' : 'false') + '" aria-label="Let people find me" onclick="toggleDiscoverable()"></button></div>';
+
+  h += '<div class="card credits"><h3 style="margin-bottom:8px">About</h3>';
+  h += '<p>Show and movie data from <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>';
+  h += '<p style="margin:0">TV schedule data from <a href="https://www.tvmaze.com" target="_blank" rel="noopener">TVmaze</a>.</p></div>';
+
+  h += '<button class="btn secondary block" onclick="doSignOut()">Log out</button>';
+  h += '</div>';
+  return h;
+}
+
+function render() {
+  const root = document.getElementById('app');
+  if (S.screen === 'loading') root.innerHTML = viewLoading();
+  else if (S.screen === 'auth') root.innerHTML = viewAuth();
+  else if (S.screen === 'onboarding') root.innerHTML = viewOnboarding();
+  else root.innerHTML = viewShell();
+}
+
+// ---------- Actions (window-scoped for inline handlers) ----------
+window.setAuthMode = function (mode) {
+  S.authEmail = val('authEmail') || S.authEmail;
+  S.authMode = mode;
+  S.error = '';
+  S.notice = '';
+  render();
+};
+
+window.submitAuth = async function () {
+  const email = val('authEmail').trim();
+  const password = val('authPassword');
+  S.authEmail = email;
+  S.error = '';
+  S.notice = '';
+  S.busy = true;
+  render();
+  try {
+    if (S.authMode === 'reset') {
+      await sendPasswordResetEmail(auth, email);
+      S.notice = 'If an account exists for that email, a reset link is on its way.';
+    } else if (S.authMode === 'signup') {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      try { await sendEmailVerification(cred.user); } catch (e) { /* non-blocking */ }
+    } else {
+      await signInWithEmailAndPassword(auth, email, password);
+    }
+  } catch (e) {
+    S.error = authErrorText(e);
+  }
+  S.busy = false;
+  if (S.screen === 'auth') render();
+};
+
+window.completeOnboarding = async function () {
+  const displayName = val('obName').trim();
+  const username = val('obUsername').trim().toLowerCase();
+  S.error = '';
+  if (!displayName) { S.error = 'Enter a display name.'; render(); return; }
+  if (!USERNAME_RE.test(username)) {
+    S.error = 'Usernames are 3–20 characters: lowercase letters, numbers, and underscores.';
+    render();
+    return;
+  }
+  S.busy = true;
+  render();
+  const uid = S.user.uid;
+  try {
+    const taken = await getDoc(doc(db, 'usernames', username));
+    if (taken.exists()) throw new Error('taken');
+
+    const plRef = doc(collection(db, 'playlists'));
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'usernames', username), { uid: uid }, { merge: true });
+    batch.set(doc(db, 'profiles', uid), {
+      username: username,
+      displayName: displayName,
+      discoverable: true,
+      createdAt: serverTimestamp()
+    }, { merge: true });
+    batch.set(plRef, {
+      name: 'My List',
+      ownerUid: uid,
+      memberUids: [uid],
+      isPersonal: true,
+      color: '#4CAF50',
+      createdAt: serverTimestamp()
+    }, { merge: true });
+    batch.set(doc(db, 'users', uid), {
+      email: S.user.email,
+      personalPlaylistId: plRef.id,
+      services: [],
+      createdAt: serverTimestamp()
+    }, { merge: true });
+    await batch.commit();
+
+    await loadAccount();
+    S.busy = false;
+    S.screen = 'app';
+    S.tab = 'home';
+    render();
+  } catch (e) {
+    S.busy = false;
+    S.error = (e.message === 'taken' || e.code === 'permission-denied')
+      ? '@' + username + ' is taken. Try another username.'
+      : 'Couldn\'t save your profile: ' + (e.message || 'unknown error');
+    render();
+    const nameEl = document.getElementById('obName');
+    const userEl = document.getElementById('obUsername');
+    if (nameEl) nameEl.value = displayName;
+    if (userEl) userEl.value = username;
+  }
+};
+
+window.setTab = function (id) {
+  S.tab = id;
+  S.error = '';
+  S.notice = '';
+  try { localStorage.setItem('ww_tab', id); } catch (e) { /* ignore */ }
+  render();
+  window.scrollTo(0, 0);
+  if (id === 'search') {
+    const el = document.getElementById('searchInput');
+    if (el && !S.search.done) el.focus();
+  }
+};
+
+window.runSearch = async function () {
+  const q = val('searchInput').trim();
+  S.search.q = q;
+  if (!q) return;
+  const reqId = ++S.search.reqId;
+  S.search.loading = true;
+  S.search.error = '';
+  renderSearchResults();
+  try {
+    const data = await api('search', { query: q });
+    if (reqId !== S.search.reqId) return;
+    S.search.results = data.results || [];
+    S.search.done = true;
+  } catch (e) {
+    if (reqId !== S.search.reqId) return;
+    S.search.error = 'Search failed: ' + e.message;
+  }
+  S.search.loading = false;
+  renderSearchResults();
+};
+
+window.toggleDiscoverable = async function () {
+  const next = !(S.profile && S.profile.discoverable);
+  S.profile.discoverable = next;
+  render();
+  try {
+    await setDoc(doc(db, 'profiles', S.user.uid), { discoverable: next }, { merge: true });
+  } catch (e) {
+    S.profile.discoverable = !next;
+    S.error = 'Couldn\'t save that setting: ' + e.message;
+    render();
+  }
+};
+
+window.resendVerification = async function () {
+  S.error = '';
+  S.notice = '';
+  try {
+    await sendEmailVerification(auth.currentUser);
+    S.notice = 'Verification email sent to ' + auth.currentUser.email + '.';
+  } catch (e) {
+    S.error = authErrorText(e);
+  }
+  render();
+};
+
+window.refreshVerification = async function () {
+  S.error = '';
+  S.notice = '';
+  try {
+    await auth.currentUser.reload();
+    await auth.currentUser.getIdToken(true);
+    S.user = auth.currentUser;
+    if (!S.user.emailVerified) S.notice = 'Not verified yet. Open the link in the email, then try again.';
+  } catch (e) {
+    S.error = e.message;
+  }
+  render();
+};
+
+window.doSignOut = async function () {
+  await signOut(auth);
+};
+
+// ---------- Boot ----------
+render();
+
+onAuthStateChanged(auth, async (user) => {
+  S.user = user;
+  S.error = '';
+  S.notice = '';
+  if (!user) {
+    S.profile = null;
+    S.userDoc = null;
+    S.personal = null;
+    S.search = { q: '', results: [], loading: false, error: '', done: false, reqId: 0 };
+    S.screen = 'auth';
+    render();
+    return;
+  }
+  S.screen = 'loading';
+  render();
+  try {
+    await loadAccount();
+  } catch (e) {
+    S.error = 'Couldn\'t load your account: ' + e.message;
+  }
+  S.screen = S.profile ? 'app' : 'onboarding';
+  render();
+});
+</script>
+</body>
+</html>
