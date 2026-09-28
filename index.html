@@ -482,6 +482,21 @@
   .cal-entry.plan .cal-label { color: var(--purple); font-weight: 700; }
 
   .inlist-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; margin-top: 10px; }
+
+  .lib-search { margin-bottom: 10px; }
+
+  /* Collapsible lists in Library */
+  .pl-toggle {
+    display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
+    background: none; border: none; padding: 4px 0; margin: 0; cursor: pointer; text-align: left; font: inherit; color: inherit;
+  }
+  .pl-toggle h2 { margin: 0; }
+  .pl-toggle .count { white-space: nowrap; }
+  .chev { display: inline-flex; width: 18px; height: 18px; color: var(--muted); transform: rotate(-90deg); transition: transform 0.15s; flex: none; }
+  .chev svg { width: 18px; height: 18px; }
+  .pl-head.collapsed .chev { transform: rotate(180deg); }
+  .pl-head.collapsed { margin-bottom: 4px; }
+  @media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
 </style>
 </head>
 <body>
@@ -615,6 +630,7 @@ const S = {
   providerCatalog: null,    // full US provider list for My Services
   seasonCache: {},          // 'tmdbId_season' -> { episodes: [...] } or { loading } / { error }
   lib: loadLibFilter(),     // Library filters
+  libCollapsed: loadLibCollapsed(), // playlistId -> true when folded up in Library
   calFilter: loadCalFilter(), // playlist ids shown on the calendar; [] means all
   weekOffset: 0,            // 0 = this week
   tvm: {},                  // tvmazeId -> [{ s, e, name, airdate, airtime }]
@@ -636,11 +652,17 @@ let peopleSearchTimer = null;
 const PL_COLORS = ['#4CAF50', '#7C3AED', '#2563EB', '#DB2777', '#EA580C', '#0D9488', '#CA8A04', '#475569'];
 
 function loadLibFilter() {
-  const def = { type: 'all', status: 'all', platform: 'all' };
+  const def = { type: 'all', status: 'all', platform: 'all', q: '' };
   try {
     const v = JSON.parse(localStorage.getItem('ww_lib') || 'null');
-    return v ? Object.assign(def, v) : def;
+    return v ? Object.assign(def, v, { q: '' }) : def;
   } catch (e) { return def; }
+}
+function loadLibCollapsed() {
+  try {
+    const v = JSON.parse(localStorage.getItem('ww_libc') || '{}');
+    return (v && typeof v === 'object') ? v : {};
+  } catch (e) { return {}; }
 }
 function loadCalFilter() {
   try {
@@ -652,7 +674,17 @@ function saveCalFilter() {
   try { localStorage.setItem('ww_cal', JSON.stringify(S.calFilter)); } catch (e) { /* ignore */ }
 }
 function saveLibFilter() {
-  try { localStorage.setItem('ww_lib', JSON.stringify(S.lib)); } catch (e) { /* ignore */ }
+  const f = { type: S.lib.type, status: S.lib.status, platform: S.lib.platform };
+  try { localStorage.setItem('ww_lib', JSON.stringify(f)); } catch (e) { /* ignore */ }
+}
+
+// "RuPaul's Drag Race UK" -> "rupauls drag race uk", so punctuation never blocks a match
+function normalizeText(t) {
+  return String(t || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/['\u2019]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 // ---------- Utils ----------
@@ -1759,6 +1791,11 @@ function libPlatformOptions() {
 
 function passesLibFilter(it) {
   const f = S.lib;
+  const words = normalizeText(f.q).split(' ').filter(Boolean);
+  if (words.length) {
+    const title = normalizeText(it.title);
+    if (!words.every(w => title.indexOf(w) !== -1)) return false;
+  }
   if (f.type !== 'all' && it.mediaType !== f.type) return false;
   if (f.status !== 'all' && it.status !== f.status) return false;
   if (f.platform !== 'all') {
@@ -1770,7 +1807,8 @@ function passesLibFilter(it) {
 
 function libraryFiltersHtml() {
   const f = S.lib;
-  let h = '<div class="lib-filters">';
+  let h = '<div class="lib-search"><input class="input" id="libSearch" type="search" placeholder="Search your library" autocomplete="off" aria-label="Search your library" value="' + esc(f.q || '') + '" oninput="setLibSearch(this.value)"></div>';
+  h += '<div class="lib-filters">';
   h += '<div class="seg" role="group" aria-label="Type">';
   [['all', 'All'], ['tv', 'TV'], ['movie', 'Movies']].forEach(o => {
     h += '<button type="button" class="' + (f.type === o[0] ? 'on' : '') + '" aria-pressed="' + (f.type === o[0]) + '" onclick="setLibFilter(\'type\', \'' + o[0] + '\')">' + o[1] + '</button>';
@@ -1822,7 +1860,14 @@ function viewLibrary() {
     return h;
   }
   h += libraryFiltersHtml();
-  const filtering = S.lib.type !== 'all' || S.lib.status !== 'all' || S.lib.platform !== 'all';
+  h += '<div id="libResults">' + libraryResultsHtml() + '</div>';
+  return h;
+}
+
+function libraryResultsHtml() {
+  const filtering = S.lib.type !== 'all' || S.lib.status !== 'all' || S.lib.platform !== 'all' || !!normalizeText(S.lib.q);
+  let h = '';
+  let shown = 0;
   S.playlists.forEach(pl => {
     const all = S.items[pl.id] || [];
     const items = all.filter(passesLibFilter).sort((a, b) => {
@@ -1830,12 +1875,22 @@ function viewLibrary() {
       if (sa !== sb) return sa - sb;
       return String(a.title).localeCompare(String(b.title));
     });
-    h += '<div class="pl-head"><span class="dot" style="background:' + esc(pl.color || '#4CAF50') + '"></span>';
+    shown += items.length;
+    const searching = !!normalizeText(S.lib.q);
+    // While searching, skip lists with no matches instead of showing an empty card for each
+    if (searching && !items.length) return;
+    // Collapsed lists open while searching so matches are never hidden
+    const collapsed = !!S.libCollapsed[pl.id] && !searching;
+    h += '<div class="pl-head' + (collapsed ? ' collapsed' : '') + '">';
+    h += '<button type="button" class="pl-toggle" aria-expanded="' + !collapsed + '" onclick="toggleListCollapse(\'' + pl.id + '\')">';
+    h += '<span class="chev" aria-hidden="true">' + ICONS.back + '</span>';
+    h += '<span class="dot" style="background:' + esc(pl.color || '#4CAF50') + '"></span>';
     h += '<h2>' + esc(pl.name) + '</h2><span class="count">';
     h += filtering ? items.length + ' of ' + all.length : all.length + (all.length === 1 ? ' title' : ' titles');
     const n = (pl.memberUids || []).length;
     if (!pl.isPersonal) h += ', ' + (n === 1 ? 'just you' : n + ' people');
-    h += '</span><button class="link-btn pl-manage" onclick="openPlaylist(\'' + pl.id + '\')">Settings</button></div>';
+    h += '</span></button><button class="link-btn pl-manage" onclick="openPlaylist(\'' + pl.id + '\')">Settings</button></div>';
+    if (collapsed) return;
     if (!all.length) {
       h += '<div class="card empty"><p class="muted">Nothing here yet. Search for a show or movie and add it to this list.</p>';
       h += '<button class="btn" onclick="setTab(\'search\')">Search</button></div>';
@@ -1850,6 +1905,10 @@ function viewLibrary() {
     items.forEach(it => { h += libraryTileHtml(it, pl.id); });
     h += '</div>';
   });
+  if (normalizeText(S.lib.q) && !shown) {
+    h += '<div class="card empty"><p class="muted">Nothing in your library matches "' + esc(S.lib.q.trim()) + '".</p>';
+    h += '<button class="btn secondary" onclick="clearLibFilters()">Clear search and filters</button></div>';
+  }
   return h;
 }
 
@@ -2495,11 +2554,22 @@ function renderModal() {
 
 function render() {
   const root = document.getElementById('app');
+  const ae = document.activeElement;
+  const focusId = (ae && ae.id && root.contains(ae) && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) ? ae.id : null;
+  let selStart = null, selEnd = null;
+  try { if (focusId) { selStart = ae.selectionStart; selEnd = ae.selectionEnd; } } catch (e) { /* not a text field */ }
   if (S.emailAction) { root.innerHTML = viewEmailAction(); return; }
   if (S.screen === 'loading') root.innerHTML = viewLoading();
   else if (S.screen === 'auth') root.innerHTML = viewAuth();
   else if (S.screen === 'onboarding') root.innerHTML = viewOnboarding();
   else root.innerHTML = viewShell();
+  if (focusId) {
+    const el = document.getElementById(focusId);
+    if (el) {
+      el.focus({ preventScroll: true });
+      try { if (selStart != null) el.setSelectionRange(selStart, selEnd); } catch (e) { /* ignore */ }
+    }
+  }
 }
 
 // ---------- Actions (window-scoped for inline handlers) ----------
@@ -3310,8 +3380,22 @@ window.setLibFilter = function (name, value) {
   render();
 };
 
+window.toggleListCollapse = function (pid) {
+  if (S.libCollapsed[pid]) delete S.libCollapsed[pid];
+  else S.libCollapsed[pid] = true;
+  try { localStorage.setItem('ww_libc', JSON.stringify(S.libCollapsed)); } catch (e) { /* ignore */ }
+  const box = document.getElementById('libResults');
+  if (box) box.innerHTML = libraryResultsHtml();
+};
+
+window.setLibSearch = function (v) {
+  S.lib.q = v;
+  const box = document.getElementById('libResults');
+  if (box) box.innerHTML = libraryResultsHtml();
+};
+
 window.clearLibFilters = function () {
-  S.lib = { type: 'all', status: 'all', platform: 'all' };
+  S.lib = { type: 'all', status: 'all', platform: 'all', q: '' };
   saveLibFilter();
   render();
 };
