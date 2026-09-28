@@ -388,7 +388,10 @@
   .week-title h2 { margin: 0; }
   .icon-btn.flip svg { transform: scaleX(-1); }
   .icon-btn:disabled { opacity: 0.35; cursor: default; }
-  .cal-chips { margin-bottom: 14px; }
+  .cal-chips { flex: 1 1 auto; }
+  .cal-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-bottom: 14px; }
+  .cal-view { margin-left: auto; flex: none; }
+  .cal-view button { padding: 6px 12px; font-size: 0.85rem; }
   .dot.sm { width: 7px; height: 7px; }
 
   .week .day { cursor: pointer; font: inherit; color: inherit; }
@@ -497,6 +500,16 @@
   .pl-head.collapsed .chev { transform: rotate(180deg); }
   .pl-head.collapsed { margin-bottom: 4px; }
   @media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+
+  /* Compact calendar: text only */
+  .cal.compact .cal-thumb { display: none; }
+  .cal.compact .cal-entry { padding: 4px 0; }
+  .cal.compact .cal-entry + .cal-entry { padding-top: 6px; }
+  @media (min-width: 768px) {
+    .cal.compact .cal-day, .cal.compact .cal-day.empty-day { min-height: 110px; }
+    .cal.compact .cal-entry { gap: 4px; }
+    .cal.compact .cal-open { gap: 0; }
+  }
 </style>
 </head>
 <body>
@@ -633,6 +646,7 @@ const S = {
   libCollapsed: loadLibCollapsed(), // playlistId -> true when folded up in Library
   calFilter: loadCalFilter(), // playlist ids shown on the calendar; [] means all
   weekOffset: 0,            // 0 = this week
+  calView: loadCalView(),   // 'posters' | 'compact'
   tvm: {},                  // tvmazeId -> [{ s, e, name, airdate, airtime }]
   tvmLoading: {},           // tvmazeId -> true while fetching
   calError: '',
@@ -657,6 +671,9 @@ function loadLibFilter() {
     const v = JSON.parse(localStorage.getItem('ww_lib') || 'null');
     return v ? Object.assign(def, v, { q: '' }) : def;
   } catch (e) { return def; }
+}
+function loadCalView() {
+  try { return localStorage.getItem('ww_calview') === 'compact' ? 'compact' : 'posters'; } catch (e) { return 'posters'; }
 }
 function loadLibCollapsed() {
   try {
@@ -1749,7 +1766,12 @@ function viewHome() {
   h += '<button class="icon-btn flip" aria-label="Next week" onclick="setWeek(1)"' + (S.weekOffset >= 25 ? ' disabled' : '') + '>' + ICONS.back + '</button>';
   h += '</div>';
 
-  h += calChipsHtml();
+  h += '<div class="cal-toolbar">' + calChipsHtml();
+  h += '<div class="seg cal-view" role="group" aria-label="Calendar view">';
+  [['posters', 'Posters'], ['compact', 'Compact']].forEach(o => {
+    h += '<button type="button" class="' + (S.calView === o[0] ? 'on' : '') + '" aria-pressed="' + (S.calView === o[0]) + '" onclick="setCalView(\'' + o[0] + '\')">' + o[1] + '</button>';
+  });
+  h += '</div></div>';
   if (S.calError) h += '<div class="msg error" role="alert">' + esc(S.calError) + '</div>';
 
   // Mobile day strip: tap to jump to that day
@@ -1770,7 +1792,7 @@ function viewHome() {
     return h;
   }
 
-  h += '<div class="cal">';
+  h += '<div class="cal' + (S.calView === 'compact' ? ' compact' : '') + '">';
   for (let i = 0; i < 7; i++) {
     const iso = isoAddDays(start, i);
     const d = isoToDate(iso);
@@ -3082,6 +3104,12 @@ window.removeWatch = async function (date) {
 };
 
 // ----- Calendar -----
+window.setCalView = function (v) {
+  S.calView = v === 'compact' ? 'compact' : 'posters';
+  try { localStorage.setItem('ww_calview', S.calView); } catch (e) { /* ignore */ }
+  render();
+};
+
 window.setWeek = function (delta) {
   S.weekOffset = delta === 0 ? 0 : Math.max(-12, Math.min(25, S.weekOffset + delta));
   render();
