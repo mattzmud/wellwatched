@@ -1119,7 +1119,7 @@ function viewNewListModal() {
   h += '<p class="muted small">Make a list to share, like the shows you watch together.</p>';
   if (m.error) h += '<div class="msg error" role="alert">' + esc(m.error) + '</div>';
   h += '<div class="field"><label for="nlName">Name</label>';
-  h += '<input class="input" id="nlName" maxlength="40" placeholder="Couch nights" value="' + esc(m.form.name) + '" oninput="S.modal.form.name = this.value"></div>';
+  h += '<input class="input" id="nlName" maxlength="40" placeholder="Couch nights" value="' + esc(m.form.name) + '" oninput="setNewListName(this.value)"></div>';
   h += '<div class="field"><label>Color</label>' + colorSwatchesHtml(m.form.color, 'setNewListColor') + '</div>';
   h += '<div class="sheet-actions"><button class="btn secondary" onclick="closeModal()">Cancel</button>';
   h += '<button class="btn" onclick="createList()"' + (m.saving ? ' disabled' : '') + '>' + (m.saving ? 'Creating…' : 'Create list') + '</button></div>';
@@ -2617,6 +2617,10 @@ window.openNewList = function () {
   if (el) el.focus();
 };
 
+window.setNewListName = function (v) {
+  if (S.modal && S.modal.form) S.modal.form.name = v;
+};
+
 window.setNewListColor = function (c) {
   S.modal.form.color = c;
   renderModal();
@@ -2624,7 +2628,8 @@ window.setNewListColor = function (c) {
 
 window.createList = async function () {
   const m = S.modal;
-  const name = String(m.form.name || '').trim();
+  const name = String(val('nlName') || m.form.name || '').trim();
+  m.form.name = name;
   if (!name) { m.error = 'Give the list a name.'; renderModal(); return; }
   m.saving = true;
   m.error = '';
