@@ -482,7 +482,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signOut, sendPasswordResetEmail, sendEmailVerification
+  signOut, sendPasswordResetEmail, sendEmailVerification,
+  applyActionCode, verifyPasswordResetCode, confirmPasswordReset
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, deleteDoc, collection, writeBatch, serverTimestamp,
@@ -571,7 +572,18 @@ function savedTab() {
   } catch (e) { return 'home'; }
 }
 
+function readEmailAction() {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const mode = q.get('mode');
+    const code = q.get('oobCode');
+    if (code && (mode === 'verifyEmail' || mode === 'resetPassword')) return { mode: mode, code: code, state: 'checking', email: '', error: '', busy: false };
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
 const S = {
+  emailAction: readEmailAction(), // verify / reset link opened from an email
   screen: 'loading',        // loading | auth | onboarding | app
   authMode: 'login',        // login | signup | reset
   authEmail: '',
@@ -674,6 +686,36 @@ function authErrorText(e) {
     'auth/network-request-failed': 'Network error. Check your connection and try again.'
   };
   return map[code] || (e && e.message) || 'Something went wrong.';
+}
+
+async function publicApi(action, data) {
+  const res = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ action: action }, data || {}))
+  });
+  let body = {};
+  try { body = await res.json(); } catch (e) { /* non-JSON */ }
+  if (!res.ok) throw new Error(body.error || ('Request failed (' + res.status + ')'));
+  return body;
+}
+
+// Branded emails go through the Worker and Resend; Firebase's plain emails are the fallback
+async function sendVerificationEmail() {
+  try {
+    await api('sendVerification', {});
+  } catch (e) {
+    console.error('[WW] branded verification email failed, using Firebase', e);
+    await sendEmailVerification(auth.currentUser, VERIFY_SETTINGS);
+  }
+}
+async function sendResetEmail(email) {
+  try {
+    await publicApi('sendPasswordReset', { email: email });
+  } catch (e) {
+    console.error('[WW] branded reset email failed, using Firebase', e);
+    await sendPasswordResetEmail(auth, email);
+  }
 }
 
 async function api(action, data) {
@@ -1375,6 +1417,97 @@ function posterHtml(posterPath, title, showBadge) {
   h += '</div>';
   return h;
 }
+
+function viewEmailAction() {
+  const a = S.emailAction;
+  let h = '<div class="auth-wrap"><div class="auth-box"><div class="auth-brand">' + brandHtml() + '</div><div class="card">';
+  if (a.state === 'checking') {
+    h += '<div class="loading" style="min-height:120px"><div class="spinner" aria-label="Checking link"></div></div>';
+  } else if (a.state === 'error') {
+    h += '<h2>' + (a.mode === 'verifyEmail' ? 'Couldn\'t verify your email' : 'Couldn\'t reset your password') + '</h2>';
+    h += '<div class="msg error" role="alert">' + esc(a.error) + '</div>';
+    h += '<button class="btn block" onclick="finishEmailAction()">Go to WellWatched</button>';
+  } else if (a.mode === 'verifyEmail') {
+    h += '<h2>Email verified</h2><p class="muted">Thanks for confirming your email.</p>';
+    h += '<button class="btn block" onclick="finishEmailAction()">Continue to WellWatched</button>';
+  } else if (a.state === 'form') {
+    h += '<h2>Choose a new password</h2><p class="muted small">For ' + esc(a.email) + '</p>';
+    if (a.error) h += '<div class="msg error" role="alert">' + esc(a.error) + '</div>';
+    h += '<form onsubmit="event.preventDefault(); submitNewPassword();">';
+    h += '<input type="email" autocomplete="username" value="' + esc(a.email) + '" hidden>';
+    h += '<div class="field"><label for="newPw">New password</label>';
+    h += '<input class="input" id="newPw" type="password" autocomplete="new-password" required minlength="6">';
+    h += '<div class="hint">At least 6 characters.</div></div>';
+    h += '<div class="field"><label for="newPw2">Confirm new password</label>';
+    h += '<input class="input" id="newPw2" type="password" autocomplete="new-password" required minlength="6"></div>';
+    h += '<button class="btn block" type="submit"' + (a.busy ? ' disabled' : '') + '>' + (a.busy ? 'Saving…' : 'Save new password') + '</button>';
+    h += '</form>';
+  } else {
+    h += '<h2>Password changed</h2><p class="muted">You can log in with your new password now.</p>';
+    h += '<button class="btn block" onclick="finishEmailAction()">Log in</button>';
+  }
+  h += '</div></div></div>';
+  return h;
+}
+
+function actionErrorText(e) {
+  const code = (e && e.code) || '';
+  if (code === 'auth/expired-action-code') return 'This link has expired. Request a new one from WellWatched.';
+  if (code === 'auth/invalid-action-code') return 'This link has already been used or isn\'t valid. Request a new one from WellWatched.';
+  if (code === 'auth/user-disabled') return 'This account has been disabled.';
+  if (code === 'auth/user-not-found') return 'There\'s no account for this link anymore.';
+  return (e && e.message) || 'Something went wrong.';
+}
+
+async function startEmailAction() {
+  const a = S.emailAction;
+  try {
+    if (a.mode === 'verifyEmail') {
+      await applyActionCode(auth, a.code);
+      a.state = 'done';
+      if (auth.currentUser) {
+        await auth.currentUser.reload();
+        await auth.currentUser.getIdToken(true);
+        S.user = auth.currentUser;
+      }
+    } else {
+      a.email = await verifyPasswordResetCode(auth, a.code);
+      a.state = 'form';
+    }
+  } catch (e) {
+    a.state = 'error';
+    a.error = actionErrorText(e);
+  }
+  render();
+}
+
+window.submitNewPassword = async function () {
+  const a = S.emailAction;
+  const pw = val('newPw');
+  const pw2 = val('newPw2');
+  if (pw.length < 6) { a.error = 'Use at least 6 characters.'; render(); return; }
+  if (pw !== pw2) { a.error = 'The passwords don\'t match.'; render(); return; }
+  a.busy = true;
+  a.error = '';
+  render();
+  try {
+    await confirmPasswordReset(auth, a.code, pw);
+    a.state = 'done';
+    S.authEmail = a.email;
+    S.authMode = 'login';
+  } catch (e) {
+    a.error = actionErrorText(e);
+  }
+  a.busy = false;
+  render();
+};
+
+window.finishEmailAction = function () {
+  S.emailAction = null;
+  try { history.replaceState(null, '', window.location.pathname); } catch (e) { /* ignore */ }
+  if (!S.user) S.screen = 'auth';
+  render();
+};
 
 function viewAuth() {
   const m = S.authMode;
@@ -2256,6 +2389,7 @@ function renderModal() {
 
 function render() {
   const root = document.getElementById('app');
+  if (S.emailAction) { root.innerHTML = viewEmailAction(); return; }
   if (S.screen === 'loading') root.innerHTML = viewLoading();
   else if (S.screen === 'auth') root.innerHTML = viewAuth();
   else if (S.screen === 'onboarding') root.innerHTML = viewOnboarding();
@@ -2281,11 +2415,11 @@ window.submitAuth = async function () {
   render();
   try {
     if (S.authMode === 'reset') {
-      await sendPasswordResetEmail(auth, email);
+      await sendResetEmail(email);
       S.notice = 'If an account exists for that email, a reset link is on its way.';
     } else if (S.authMode === 'signup') {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
-      try { await sendEmailVerification(cred.user, VERIFY_SETTINGS); } catch (e) { console.error('[WW] verification email failed', e); }
+      try { await sendVerificationEmail(); } catch (e) { console.error('[WW] verification email failed', e); }
     } else {
       await signInWithEmailAndPassword(auth, email, password);
     }
@@ -3145,7 +3279,7 @@ window.resendVerification = async function () {
   S.error = '';
   S.notice = '';
   try {
-    await sendEmailVerification(auth.currentUser, VERIFY_SETTINGS);
+    await sendVerificationEmail();
     S.notice = 'Verification email sent to ' + auth.currentUser.email + '.';
   } catch (e) {
     S.error = authErrorText(e);
@@ -3180,6 +3314,7 @@ document.addEventListener('keydown', (e) => {
 
 // ---------- Boot ----------
 render();
+if (S.emailAction) startEmailAction();
 
 onAuthStateChanged(auth, async (user) => {
   S.user = user;
