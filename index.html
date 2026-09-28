@@ -381,6 +381,66 @@
   .watch-row + .watch-row { border-top: 1px solid var(--border); }
   .log-row { display: flex; gap: 8px; }
   .log-row .input { flex: 1; }
+
+  /* ---------- Phase 2: calendar ---------- */
+  .week-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .week-title { flex: 1; text-align: center; }
+  .week-title h2 { margin: 0; }
+  .icon-btn.flip svg { transform: scaleX(-1); }
+  .icon-btn:disabled { opacity: 0.35; cursor: default; }
+  .cal-chips { margin-bottom: 14px; }
+  .dot.sm { width: 7px; height: 7px; }
+
+  .week .day { cursor: pointer; font: inherit; color: inherit; }
+  .week .dcount { display: flex; justify-content: center; gap: 3px; height: 8px; margin-top: 4px; }
+  .week .dcount .dot { background: var(--purple); }
+
+  .cal { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .cal-day { background: #fff; border: 1px solid var(--border); border-radius: var(--r-card); padding: 12px; scroll-margin-top: 80px; }
+  .cal-day.today { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+  .cal-day.empty-day { padding: 10px 12px; }
+  .cal-day-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; font-family: 'Nunito', sans-serif; }
+  .cal-day.empty-day .cal-day-head { margin-bottom: 0; display: inline-flex; }
+  .cd-name { font-weight: 800; }
+  .cd-date { color: var(--muted); font-weight: 700; font-size: 0.9rem; }
+  .cd-today { margin-left: auto; font-size: 0.75rem; font-weight: 800; color: #2E6B31; background: #EAF6EA; border-radius: 999px; padding: 1px 8px; }
+  .cal-none { color: var(--muted); font-size: 0.85rem; }
+  .cal-day.empty-day .cal-none { display: inline; margin-left: 8px; }
+
+  .cal-entry { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+  .cal-entry + .cal-entry { border-top: 1px solid var(--border); padding-top: 8px; }
+  .cal-open { flex: 1; min-width: 0; display: flex; gap: 10px; align-items: center; background: none; border: none; padding: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+  .cal-thumb { width: 36px; height: 54px; flex: none; border-radius: 6px; overflow: hidden; background: #EFEBE3; }
+  .cal-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cal-text { min-width: 0; display: flex; flex-direction: column; }
+  .cal-title { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 0.95rem; line-height: 1.25; }
+  .cal-label { font-size: 0.85rem; line-height: 1.3; }
+  .cal-meta { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .cal-entry.done .cal-title, .cal-entry.done .cal-label { color: var(--muted); }
+
+  @media (min-width: 768px) {
+    .week { display: none; }
+    .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+    .cal-day, .cal-day.empty-day { padding: 10px 8px; min-height: 160px; }
+    .cal-day-head, .cal-day.empty-day .cal-day-head { display: flex; flex-direction: column; gap: 0; margin-bottom: 8px; align-items: flex-start; }
+    .cd-today { margin-left: 0; margin-top: 2px; }
+    .cal-day.empty-day .cal-none { display: block; margin-left: 0; }
+    .cal-entry { flex-direction: column; align-items: stretch; gap: 6px; }
+    .cal-open { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .cal-thumb { width: 100%; height: auto; aspect-ratio: 2 / 3; }
+    .cal-title { font-size: 0.85rem; }
+    .cal-label { font-size: 0.78rem; }
+    .cal-entry .check { align-self: flex-start; }
+  }
+
+  .section-head { margin: 8px 0 12px; }
+  .section-head h2 { margin: 0; }
+  .rail { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
+  .rail-tile { flex: none; width: 118px; background: none; border: none; padding: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; scroll-snap-align: start; display: flex; flex-direction: column; }
+  .rail-title { font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.88rem; line-height: 1.3; margin-top: 6px; }
+  .rail-next { font-size: 0.78rem; color: var(--muted); }
+  .cal-setting { margin-top: 10px; }
+  .cal-setting label { font-size: 0.78rem; margin-bottom: 4px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -410,6 +470,7 @@ const firebaseConfig = {
 const WORKER_URL = "https://wellwatched-worker.matt-zmud.workers.dev";
 const IMG_BASE = "https://image.tmdb.org/t/p/w342";
 const LOGO_BASE = "https://image.tmdb.org/t/p/w92";
+const THUMB_BASE = "https://image.tmdb.org/t/p/w92";
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 const APP_URL = "https://watch.wellreadco.app/";
 const VERIFY_SETTINGS = { url: APP_URL };
@@ -498,6 +559,12 @@ const S = {
   providerCatalog: null,    // full US provider list for My Services
   seasonCache: {},          // 'tmdbId_season' -> { episodes: [...] } or { loading } / { error }
   lib: loadLibFilter(),     // Library filters
+  calFilter: loadCalFilter(), // playlist ids shown on the calendar; [] means all
+  weekOffset: 0,            // 0 = this week
+  tvm: {},                  // tvmazeId -> [{ s, e, name, airdate, airtime }]
+  tvmLoading: {},           // tvmazeId -> true while fetching
+  calError: '',
+  linking: false,           // a TVmaze match batch is in flight
   modal: null               // { view: 'detail' | 'add' | 'services', ... }
 };
 
@@ -511,6 +578,15 @@ function loadLibFilter() {
     const v = JSON.parse(localStorage.getItem('ww_lib') || 'null');
     return v ? Object.assign(def, v) : def;
   } catch (e) { return def; }
+}
+function loadCalFilter() {
+  try {
+    const v = JSON.parse(localStorage.getItem('ww_cal') || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch (e) { return []; }
+}
+function saveCalFilter() {
+  try { localStorage.setItem('ww_cal', JSON.stringify(S.calFilter)); } catch (e) { /* ignore */ }
 }
 function saveLibFilter() {
   try { localStorage.setItem('ww_lib', JSON.stringify(S.lib)); } catch (e) { /* ignore */ }
@@ -639,6 +715,8 @@ function stopListeners() {
 
 function onDataChange() {
   if (S.screen !== 'app') return;
+  ensureTvmazeLinks();
+  ensureSchedule();
   render();
   // Refresh the detail view (membership or progress may have changed); the add form is never re-rendered mid-edit
   if (S.modal && S.modal.view === 'detail') {
@@ -712,6 +790,7 @@ function refreshStoredItems(d) {
     const it = x.item;
     const fields = { title: d.title, posterPath: d.posterPath || null };
     if (d.mediaType === 'tv') Object.assign(fields, tvMeta(d));
+    else fields.releases = d.releases || null;
     const changed = Object.keys(fields).some(k => JSON.stringify(it[k] == null ? null : it[k]) !== JSON.stringify(fields[k]));
     if (!changed) return;
     fields.lastRefreshed = serverTimestamp();
@@ -809,6 +888,153 @@ async function loadSeason(tmdbId, sn) {
     S.seasonCache[ck] = { error: e.message };
   }
   if (S.modal && S.modal.view === 'detail' && S.modal.tmdbId === tmdbId) renderModal();
+}
+
+// ---------- Calendar data ----------
+function isoOf(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function isoAddDays(iso, n) {
+  const p = iso.split('-');
+  const d = new Date(parseFloat(p[0]), parseFloat(p[1]) - 1, parseFloat(p[2]) + n);
+  return isoOf(d);
+}
+function weekStartIso() {
+  const t = new Date();
+  const start = new Date(t.getFullYear(), t.getMonth(), t.getDate() - t.getDay() + S.weekOffset * 7);
+  return isoOf(start);
+}
+function isoToDate(iso) {
+  const p = iso.split('-');
+  return new Date(parseFloat(p[0]), parseFloat(p[1]) - 1, parseFloat(p[2]));
+}
+
+function allItemsWithPlaylist() {
+  const out = [];
+  S.playlists.forEach(pl => (S.items[pl.id] || []).forEach(it => out.push({ pl: pl, it: it })));
+  return out;
+}
+
+// Match TV shows to TVmaze once; the result is stored on the item
+async function ensureTvmazeLinks() {
+  if (S.linking) return;
+  const pending = {};
+  allItemsWithPlaylist().forEach(x => {
+    const it = x.it;
+    if (it.mediaType !== 'tv' || it.tvmazeChecked) return;
+    if (!pending[it.id]) pending[it.id] = { key: it.id, imdbId: it.imdbId || null, tvdbId: it.tvdbId || null, title: it.title, refs: [] };
+    pending[it.id].refs.push(x.pl.id);
+  });
+  const batch = Object.keys(pending).slice(0, 25).map(k => pending[k]);
+  if (!batch.length) return;
+  S.linking = true;
+  try {
+    const res = await api('linkTvmaze', { shows: batch.map(b => ({ key: b.key, imdbId: b.imdbId, tvdbId: b.tvdbId, title: b.title })) });
+    const results = res.results || {};
+    await Promise.all(batch.map(b => {
+      const r = results[b.key] || null;
+      const fields = { tvmazeId: r ? r.id : null, tvmaze: r, tvmazeChecked: true };
+      return Promise.all(b.refs.map(pid => setDoc(doc(db, 'playlists', pid, 'items', b.key), fields, { merge: true })));
+    }));
+  } catch (e) {
+    console.error('[WW] TVmaze linking failed', e);
+    S.calError = 'Couldn\'t match shows to their schedules: ' + e.message;
+  }
+  S.linking = false;
+}
+
+// Load episode air dates for every linked show (all playlists, so filter changes are instant)
+async function ensureSchedule() {
+  const ids = [];
+  allItemsWithPlaylist().forEach(x => {
+    const id = x.it.tvmazeId;
+    if (x.it.mediaType === 'tv' && id && !S.tvm[id] && !S.tvmLoading[id] && ids.indexOf(id) === -1) ids.push(id);
+  });
+  if (!ids.length) return;
+  ids.forEach(id => { S.tvmLoading[id] = true; });
+  try {
+    const res = await api('episodes', { ids: ids });
+    const shows = res.shows || {};
+    ids.forEach(id => { S.tvm[id] = shows[String(id)] || []; });
+    S.calError = '';
+  } catch (e) {
+    console.error('[WW] schedule load failed', e);
+    S.calError = 'Couldn\'t load air dates: ' + e.message;
+  }
+  ids.forEach(id => { delete S.tvmLoading[id]; });
+  if (S.screen === 'app' && S.tab === 'home') render();
+}
+
+function calPlaylists() {
+  const sel = S.calFilter.filter(pid => S.playlists.some(p => p.id === pid));
+  return sel.length ? S.playlists.filter(p => sel.indexOf(p.id) !== -1) : S.playlists;
+}
+
+// Builds { iso: [entry] } for the 7 days starting at startIso
+function calendarEntries(startIso) {
+  const days = [];
+  for (let i = 0; i < 7; i++) days.push(isoAddDays(startIso, i));
+  const endIso = days[6];
+  const today = todayIso();
+  const byKey = {};
+  const order = [];
+
+  function add(entry, pl) {
+    const k = entry.id;
+    if (!byKey[k]) { byKey[k] = entry; entry.pls = []; order.push(k); }
+    byKey[k].pls.push({ pid: pl.id, name: pl.name, color: pl.color || '#4CAF50' });
+  }
+
+  calPlaylists().forEach(pl => (S.items[pl.id] || []).forEach(it => {
+    if (it.hideFromCalendar || it.status === 'dropped') return;
+    if (it.mediaType === 'tv') {
+      const eps = it.tvmazeId ? S.tvm[it.tvmazeId] : null;
+      if (!eps) return;
+      const offset = parseFloat(it.dayOffset) || 0;
+      eps.forEach(ep => {
+        const date = isoAddDays(ep.airdate, offset);
+        if (date < startIso || date > endIso) return;
+        const k = epKey(ep.s, ep.e);
+        add({
+          id: it.id + '|' + k + '|' + date, date: date, kind: 'ep', itemId: it.id,
+          mediaType: 'tv', tmdbId: it.tmdbId, title: it.title, posterPath: it.posterPath,
+          label: 'S' + ep.s + ' E' + ep.e + (ep.name ? ': ' + ep.name : ''),
+          platform: it.platform ? it.platform.name : (it.tvmaze && (it.tvmaze.webChannel || it.tvmaze.network)) || '',
+          epKey: k, aired: ep.airdate <= today, watched: isWatched(it, k)
+        }, pl);
+      });
+    } else if (it.status === 'want' && it.releases) {
+      [['theatrical', 'In theaters'], ['digital', 'Digital release']].forEach(r => {
+        const date = it.releases[r[0]];
+        if (!date || date < startIso || date > endIso) return;
+        add({
+          id: it.id + '|' + r[0] + '|' + date, date: date, kind: 'movie', itemId: it.id,
+          mediaType: 'movie', tmdbId: it.tmdbId, title: it.title, posterPath: it.posterPath,
+          label: r[1], platform: it.platform ? it.platform.name : '', aired: date <= today, watched: false
+        }, pl);
+      });
+    }
+  }));
+
+  const out = {};
+  days.forEach(d => { out[d] = []; });
+  order.forEach(k => out[byKey[k].date].push(byKey[k]));
+  days.forEach(d => out[d].sort((a, b) => String(a.title).localeCompare(String(b.title))));
+  return out;
+}
+
+function continueWatching() {
+  const seen = {};
+  const out = [];
+  calPlaylists().forEach(pl => (S.items[pl.id] || []).forEach(it => {
+    if (it.mediaType !== 'tv' || it.status !== 'watching' || seen[it.id]) return;
+    const next = nextUpKey(it);
+    if (!next) return;
+    seen[it.id] = true;
+    out.push({ it: it, pid: pl.id, next: next });
+  }));
+  const ms = x => (x.it.updatedAt && x.it.updatedAt.toMillis) ? x.it.updatedAt.toMillis() : 0;
+  return out.sort((a, b) => ms(b) - ms(a)).slice(0, 12);
 }
 
 // ---------- Views ----------
@@ -912,24 +1138,114 @@ function viewShell() {
   return h;
 }
 
-function viewHome() {
-  const name = S.profile ? S.profile.displayName : '';
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function calChipsHtml() {
+  if (S.playlists.length < 2) return '';
+  const sel = S.calFilter.filter(pid => S.playlists.some(p => p.id === pid));
+  let h = '<div class="choice-row cal-chips" role="group" aria-label="Lists on calendar">';
+  h += '<button type="button" class="choice' + (!sel.length ? ' on' : '') + '" aria-pressed="' + (!sel.length) + '" onclick="setCalFilter(\'all\')">All lists</button>';
+  S.playlists.forEach(pl => {
+    const on = sel.indexOf(pl.id) !== -1;
+    h += '<button type="button" class="choice' + (on ? ' on' : '') + '" aria-pressed="' + on + '" onclick="setCalFilter(\'' + pl.id + '\')">';
+    h += '<span class="dot" style="background:' + esc(pl.color || '#4CAF50') + '"></span>' + esc(pl.name) + '</button>';
+  });
+  h += '</div>';
+  return h;
+}
 
-  let h = '<div class="page-head"><h1>Hi, ' + esc(name) + '</h1><p class="muted">Here\'s your week.</p></div>';
-  h += msgHtml();
-  h += '<div class="week">';
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-    const isToday = d.toDateString() === today.toDateString();
-    h += '<div class="day' + (isToday ? ' today' : '') + '"><div class="dname">' + dayNames[i] + '</div><div class="dnum">' + d.getDate() + '</div></div>';
+function calEntryHtml(en) {
+  const single = en.pls.length === 1;
+  let h = '<div class="cal-entry' + (en.watched ? ' done' : '') + '">';
+  h += '<button type="button" class="cal-open" onclick="openDetail(\'' + en.mediaType + '\',' + parseFloat(en.tmdbId) + ',\'' + en.pls[0].pid + '\')">';
+  h += '<span class="cal-thumb">' + (en.posterPath ? '<img loading="lazy" src="' + THUMB_BASE + esc(en.posterPath) + '" alt="">' : '') + '</span>';
+  h += '<span class="cal-text"><span class="cal-title">' + esc(en.title) + '</span>';
+  h += '<span class="cal-label">' + esc(en.label) + '</span>';
+  h += '<span class="cal-meta">';
+  en.pls.forEach(p => { h += '<span class="dot sm" title="' + esc(p.name) + '" style="background:' + esc(p.color) + '"></span>'; });
+  if (en.platform) h += '<span>' + esc(en.platform) + '</span>';
+  h += '</span></span></button>';
+  if (en.kind === 'ep' && en.aired) {
+    // With more than one list, open the sheet so you choose which list's progress to update
+    const action = single
+      ? 'calToggleEp(\'' + en.pls[0].pid + '\',\'' + en.itemId + '\',\'' + en.epKey + '\')'
+      : 'openDetail(\'tv\',' + parseFloat(en.tmdbId) + ',\'' + en.pls[0].pid + '\')';
+    h += '<button type="button" class="check' + (en.watched ? ' on' : '') + '" aria-label="' + (en.watched ? 'Mark unwatched' : 'Mark watched') + ': ' + esc(en.title) + ' ' + esc(en.label) + '" onclick="' + action + '">' + (en.watched ? '&#10003;' : '') + '</button>';
   }
   h += '</div>';
-  h += '<div class="card empty"><h3>Your release calendar is coming soon</h3>';
-  h += '<p class="muted">Add the shows you\'re watching now, and their new episodes will appear here once the calendar is turned on.</p>';
-  h += '<button class="btn" onclick="setTab(\'search\')">Find a show</button></div>';
+  return h;
+}
+
+function continueHtml() {
+  const list = continueWatching();
+  if (!list.length) return '';
+  let h = '<div class="section-head"><h2>Continue watching</h2></div><div class="rail">';
+  list.forEach(x => {
+    h += '<button type="button" class="rail-tile" onclick="openDetail(\'tv\',' + parseFloat(x.it.tmdbId) + ',\'' + x.pid + '\')">';
+    h += posterHtml(x.it.posterPath, x.it.title, false);
+    h += '<span class="rail-title">' + esc(x.it.title) + '</span>';
+    h += '<span class="rail-next">Next: ' + esc(epLabel(x.next)) + '</span></button>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function viewHome() {
+  const name = S.profile ? S.profile.displayName : '';
+  const start = weekStartIso();
+  const end = isoAddDays(start, 6);
+  const today = todayIso();
+  const entries = calendarEntries(start);
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const totalItems = Object.keys(S.items).reduce((n, pid) => n + (S.items[pid] || []).length, 0);
+  const loading = S.linking || Object.keys(S.tvmLoading).length > 0;
+
+  let h = '<div class="page-head"><h1>Hi, ' + esc(name) + '</h1></div>';
+  h += msgHtml();
+
+  const sd = isoToDate(start), ed = isoToDate(end);
+  const range = sd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' to ' +
+    ed.toLocaleDateString(undefined, { month: sd.getMonth() === ed.getMonth() ? undefined : 'short', day: 'numeric' });
+  h += '<div class="week-nav">';
+  h += '<button class="icon-btn" aria-label="Previous week" onclick="setWeek(-1)"' + (S.weekOffset <= -12 ? ' disabled' : '') + '>' + ICONS.back + '</button>';
+  h += '<div class="week-title"><h2>' + (S.weekOffset === 0 ? 'This week' : esc(range)) + '</h2>';
+  h += '<div class="small muted">' + (S.weekOffset === 0 ? esc(range) : '<button class="link-btn" onclick="setWeek(0)">Back to this week</button>') + '</div></div>';
+  h += '<button class="icon-btn flip" aria-label="Next week" onclick="setWeek(1)"' + (S.weekOffset >= 25 ? ' disabled' : '') + '>' + ICONS.back + '</button>';
+  h += '</div>';
+
+  h += calChipsHtml();
+  if (S.calError) h += '<div class="msg error" role="alert">' + esc(S.calError) + '</div>';
+
+  // Mobile day strip: tap to jump to that day
+  h += '<div class="week">';
+  for (let i = 0; i < 7; i++) {
+    const iso = isoAddDays(start, i);
+    const n = entries[iso].length;
+    h += '<button type="button" class="day' + (iso === today ? ' today' : '') + '" onclick="jumpToDay(\'' + iso + '\')">';
+    h += '<div class="dname">' + dayNames[i] + '</div><div class="dnum">' + isoToDate(iso).getDate() + '</div>';
+    h += '<div class="dcount">' + (n ? '<span class="dot sm"></span>'.repeat(Math.min(n, 3)) : '') + '</div></button>';
+  }
+  h += '</div>';
+
+  if (!totalItems) {
+    h += '<div class="card empty"><h3>Nothing on your calendar yet</h3>';
+    h += '<p class="muted">Add a show you\'re watching and its new episodes will show up here on the day they drop.</p>';
+    h += '<button class="btn" onclick="setTab(\'search\')">Find a show</button></div>';
+    return h;
+  }
+
+  h += '<div class="cal">';
+  for (let i = 0; i < 7; i++) {
+    const iso = isoAddDays(start, i);
+    const d = isoToDate(iso);
+    const list = entries[iso];
+    h += '<section class="cal-day' + (iso === today ? ' today' : '') + (list.length ? '' : ' empty-day') + '" id="day-' + iso + '">';
+    h += '<div class="cal-day-head"><span class="cd-name">' + dayNames[i] + '</span><span class="cd-date">' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '</span>' + (iso === today ? '<span class="cd-today">Today</span>' : '') + '</div>';
+    if (list.length) list.forEach(en => { h += calEntryHtml(en); });
+    else h += '<div class="cal-none">' + (loading ? 'Loading…' : 'Nothing new') + '</div>';
+    h += '</section>';
+  }
+  h += '</div>';
+
+  h += continueHtml();
   return h;
 }
 
@@ -1203,6 +1519,37 @@ function statusSelectHtml(id, mediaType, current, onchange) {
   return h;
 }
 
+const OFFSET_OPTIONS = [
+  { v: '0', label: 'Same day it airs' },
+  { v: '1', label: '1 day later' },
+  { v: '2', label: '2 days later' },
+  { v: '3', label: '3 days later' },
+  { v: '7', label: '1 week later' },
+  { v: 'hide', label: 'Don\'t show on calendar' }
+];
+
+function calendarSettingHtml(it, pid) {
+  const cur = it.hideFromCalendar ? 'hide' : String(parseFloat(it.dayOffset) || 0);
+  const tm = it.tvmaze;
+  const airsOn = tm ? (tm.network || tm.webChannel) : null;
+  let h = '<div class="cal-setting"><label for="off_' + pid + '">On my calendar</label>';
+  h += '<select class="input" id="off_' + pid + '" onchange="setItemOffset(\'' + pid + '\', this.value)">';
+  OFFSET_OPTIONS.forEach(o => {
+    h += '<option value="' + o.v + '"' + (o.v === cur ? ' selected' : '') + '>' + esc(o.label) + '</option>';
+  });
+  h += '</select><div class="hint">';
+  if (!it.tvmazeChecked) h += 'Looking up this show\'s schedule…';
+  else if (!tm) h += 'No schedule found for this show, so it won\'t appear on the calendar.';
+  else {
+    h += 'Schedule from TVmaze: ' + esc(tm.name) + (airsOn ? ' on ' + esc(airsOn) : '') + '.';
+    if (tm.network && it.platform && it.platform.name && it.platform.name !== tm.network) {
+      h += ' If ' + esc(it.platform.name) + ' posts episodes the day after they air, choose 1 day later.';
+    }
+  }
+  h += '</div></div>';
+  return h;
+}
+
 function ctxItem() {
   const m = S.modal;
   if (!m || !m.ctxPid) return null;
@@ -1441,6 +1788,7 @@ function viewDetailModal() {
     h += statusSelectHtml('st_' + pid, d.mediaType, it.status, 'setItemStatus(\'' + pid + '\', this.value)') + '</div>';
     h += '<div><label for="pf_' + pid + '">Where I watch</label>';
     h += platformSelectHtml('pf_' + pid, platformOptions(d, it.platform), it.platform ? it.platform.id : '', 'setItemPlatform(\'' + pid + '\', this.value)') + '</div></div>';
+    if (d.mediaType === 'tv') h += calendarSettingHtml(it, pid);
     h += '<button class="remove-btn" onclick="removeItem(\'' + pid + '\')">Remove from ' + esc(pl.name) + '</button></div>';
   });
   if (available.length) {
@@ -1990,6 +2338,63 @@ window.removeWatch = async function (date) {
   }
 };
 
+// ----- Calendar -----
+window.setWeek = function (delta) {
+  S.weekOffset = delta === 0 ? 0 : Math.max(-12, Math.min(25, S.weekOffset + delta));
+  render();
+};
+
+window.setCalFilter = function (pid) {
+  if (pid === 'all') {
+    S.calFilter = [];
+  } else {
+    const sel = S.calFilter.filter(x => S.playlists.some(p => p.id === x));
+    const i = sel.indexOf(pid);
+    if (i === -1) sel.push(pid); else sel.splice(i, 1);
+    // Every list selected is the same as "All lists"
+    S.calFilter = sel.length === S.playlists.length ? [] : sel;
+  }
+  saveCalFilter();
+  render();
+};
+
+window.jumpToDay = function (iso) {
+  const el = document.getElementById('day-' + iso);
+  if (!el) return;
+  const top = el.getBoundingClientRect().top + window.scrollY - 80;
+  window.scrollTo({ top: top, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+};
+
+window.calToggleEp = async function (pid, itemId, k) {
+  const it = findItem(pid, itemId);
+  if (!it) return;
+  const ref = doc(db, 'playlists', pid, 'items', itemId);
+  try {
+    if (isWatched(it, k)) {
+      const w = {};
+      w[k] = deleteField();
+      await setDoc(ref, { watched: w, updatedAt: serverTimestamp() }, { merge: true });
+    } else {
+      const w = {};
+      w[k] = serverTimestamp();
+      const fields = { watched: w, updatedAt: serverTimestamp() };
+      const next = statusAfterWatching(it, [k]);
+      if (next && next !== it.status) fields.status = next;
+      await setDoc(ref, fields, { merge: true });
+    }
+  } catch (e) {
+    S.error = 'Couldn\'t save progress: ' + e.message;
+    render();
+  }
+};
+
+window.setItemOffset = function (pid, value) {
+  const fields = value === 'hide'
+    ? { hideFromCalendar: true }
+    : { hideFromCalendar: false, dayOffset: parseFloat(value) || 0 };
+  saveItemField(pid, fields);
+};
+
 // ----- Library filters -----
 window.setLibFilter = function (name, value) {
   S.lib[name] = value;
@@ -2066,6 +2471,7 @@ window.saveAdd = async function () {
     Object.assign(item, tvMeta(d));
   } else {
     item.watchDates = [];
+    item.releases = d.releases || null;
   }
   m.saving = true;
   renderModal();
@@ -2206,6 +2612,11 @@ onAuthStateChanged(auth, async (user) => {
     S.modal = null;
     S.detailCache = {};
     S.seasonCache = {};
+    S.tvm = {};
+    S.tvmLoading = {};
+    S.calError = '';
+    S.linking = false;
+    S.weekOffset = 0;
     S.search = { q: '', results: [], loading: false, error: '', done: false, reqId: 0 };
     S.screen = 'auth';
     renderModal();
