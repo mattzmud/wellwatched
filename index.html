@@ -585,8 +585,10 @@ window.submitAuth = async function () {
   } catch (e) {
     S.error = authErrorText(e);
   }
-  S.busy = false;
-  if (S.screen === 'auth') render();
+  if (S.screen === 'auth') {
+    S.busy = false;
+    render();
+  }
 };
 
 window.completeOnboarding = async function () {
@@ -740,6 +742,9 @@ onAuthStateChanged(auth, async (user) => {
   S.user = user;
   S.error = '';
   S.notice = '';
+  // Each screen starts un-busy; the login/signup button's busy state must not carry over
+  S.busy = false;
+  S.busyLabel = '';
   if (!user) {
     S.profile = null;
     S.userDoc = null;
