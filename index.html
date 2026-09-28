@@ -443,7 +443,7 @@ function myServices() {
   return (S.userDoc && Array.isArray(S.userDoc.services)) ? S.userDoc.services : [];
 }
 function myServiceIds() {
-  return myServices().map(s => s.id);
+  return myServices().map(s => String(s.id));
 }
 function fmtDate(iso) {
   if (!iso) return '';
@@ -800,7 +800,7 @@ function sheetTop(title, showBack) {
 function providerTiles(list, mine) {
   let h = '<div class="prov-row">';
   list.forEach(p => {
-    const isMine = mine.indexOf(p.id) !== -1;
+    const isMine = mine.indexOf(String(p.id)) !== -1;
     h += '<div class="prov' + (isMine ? ' mine' : '') + '" title="' + esc(p.name) + '">';
     h += p.logoPath ? '<img loading="lazy" src="' + LOGO_BASE + esc(p.logoPath) + '" alt="' + esc(p.name) + '">' : '';
     h += '</div>';
@@ -824,7 +824,7 @@ function whereToWatchHtml(d) {
   if (!groups.length) {
     h += '<p class="muted small">Not available to stream, rent, or buy in the US right now.</p>';
   } else {
-    const onMine = (pv.stream || []).concat(free).filter(p => mine.indexOf(p.id) !== -1);
+    const onMine = (pv.stream || []).concat(free).filter(p => mine.indexOf(String(p.id)) !== -1);
     if (onMine.length) h += '<p class="mine-note">On your services: ' + esc(onMine.map(p => p.name).join(', ')) + '</p>';
     groups.forEach(g => {
       h += '<div class="prov-group"><div class="gname">' + g.name + '</div>' + providerTiles(g.list, mine) + '</div>';
@@ -954,17 +954,35 @@ function viewAddModal() {
   return h;
 }
 
+const POPULAR_COUNT = 20;
+
+function isSelected(id) {
+  return S.modal.selected.some(x => String(x) === String(id));
+}
+
 function servicesGridHtml() {
   const m = S.modal;
   if (m.error) return '<div class="msg error" role="alert">' + esc(m.error) + '</div>';
   if (!S.providerCatalog) return '<div class="loading" style="min-height:160px"><div class="spinner" aria-label="Loading"></div></div>';
   const f = (m.filter || '').trim().toLowerCase();
-  const list = S.providerCatalog.filter(p => !f || p.name.toLowerCase().indexOf(f) !== -1);
-  if (!list.length) return '<p class="muted small" style="margin-top:12px">No services match "' + esc(m.filter) + '".</p>';
-  let h = '<div class="svc-grid">';
+  let list;
+  let note = '';
+  if (f) {
+    // Searching looks through every service
+    list = S.providerCatalog.filter(p => p.name.toLowerCase().indexOf(f) !== -1);
+    if (!list.length) return '<p class="muted small" style="margin-top:12px">No services match "' + esc(m.filter) + '".</p>';
+  } else {
+    // Default view: the most popular services, plus anything already selected
+    list = S.providerCatalog.slice(0, POPULAR_COUNT);
+    S.providerCatalog.slice(POPULAR_COUNT).forEach(p => {
+      if (isSelected(p.id)) list.push(p);
+    });
+    note = '<p class="muted small" style="margin:12px 0 0">Showing the most popular services. Search to find others.</p>';
+  }
+  let h = note + '<div class="svc-grid">';
   list.forEach(p => {
-    const on = m.selected.indexOf(p.id) !== -1;
-    h += '<button type="button" class="svc' + (on ? ' on' : '') + '" aria-pressed="' + (on ? 'true' : 'false') + '" onclick="toggleService(' + p.id + ')">';
+    const on = isSelected(p.id);
+    h += '<button type="button" class="svc' + (on ? ' on' : '') + '" aria-pressed="' + (on ? 'true' : 'false') + '" data-id="' + esc(p.id) + '" onclick="toggleService(this.getAttribute(\'data-id\'))">';
     h += p.logoPath ? '<img loading="lazy" src="' + LOGO_BASE + esc(p.logoPath) + '" alt="">' : '';
     h += '<span>' + esc(p.name) + '</span></button>';
   });
@@ -1238,7 +1256,7 @@ function defaultPlatformId(d) {
   const mine = myServiceIds();
   const pv = d.providers || {};
   const streamable = (pv.stream || []).concat(pv.free || [], pv.ads || []);
-  const onMine = streamable.find(p => mine.indexOf(p.id) !== -1);
+  const onMine = streamable.find(p => mine.indexOf(String(p.id)) !== -1);
   if (onMine) return String(onMine.id);
   return streamable.length ? String(streamable[0].id) : '';
 }
@@ -1307,7 +1325,8 @@ window.saveAdd = async function () {
 
 // ----- My services -----
 window.openServices = async function () {
-  S.modal = { view: 'services', selected: myServiceIds().slice(), filter: '', error: '' };
+  // Service ids are brand keys like 'paramount-plus'; drop any older numeric ids
+  S.modal = { view: 'services', selected: myServiceIds().filter(id => isNaN(parseFloat(id))), filter: '', error: '' };
   renderModal();
   if (S.providerCatalog) return;
   try {
@@ -1321,8 +1340,10 @@ window.openServices = async function () {
 
 window.toggleService = function (id) {
   const m = S.modal;
-  const i = m.selected.indexOf(id);
-  if (i === -1) m.selected.push(id); else m.selected.splice(i, 1);
+  if (!m || m.view !== 'services') return;
+  // Compare as strings so ids work whether they arrive as numbers or brand keys
+  const i = m.selected.findIndex(x => String(x) === String(id));
+  if (i === -1) m.selected.push(String(id)); else m.selected.splice(i, 1);
   renderModal();
 };
 
@@ -1337,7 +1358,7 @@ window.saveServices = async function () {
   const catalog = S.providerCatalog || [];
   const prior = myServices();
   const services = m.selected.map(id => {
-    const p = catalog.find(x => x.id === id) || prior.find(x => x.id === id);
+    const p = catalog.find(x => String(x.id) === String(id)) || prior.find(x => String(x.id) === String(id));
     return p ? { id: p.id, name: p.name, logoPath: p.logoPath || null } : null;
   }).filter(Boolean);
   m.saving = true;
