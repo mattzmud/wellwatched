@@ -510,6 +510,15 @@
     .cal.compact .cal-entry { gap: 4px; }
     .cal.compact .cal-open { gap: 0; }
   }
+
+  /* Email digests */
+  .digest-row { padding: 10px 0; }
+  .digest-row + .digest-row { border-top: 1px solid var(--border); }
+  .toggle:disabled { opacity: 0.4; cursor: default; }
+  .digest-opts { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 14px; }
+  .digest-opts > label { font-size: 0.85rem; }
+  .digest-opts .seg { display: inline-flex; }
+  .digest-test { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
 </style>
 </head>
 <body>
@@ -606,6 +615,13 @@ const TABS = [
 
 // ---------- State ----------
 function savedTab() {
+  try {
+    const fromLink = new URLSearchParams(window.location.search).get('tab');
+    if (fromLink && TABS.some(x => x.id === fromLink)) {
+      history.replaceState(null, '', window.location.pathname);
+      return fromLink;
+    }
+  } catch (e) { /* ignore */ }
   try {
     const t = localStorage.getItem('ww_tab');
     return TABS.some(x => x.id === t) ? t : 'home';
@@ -1989,6 +2005,60 @@ function renderSearchResults() {
   if (el) el.innerHTML = searchResultsHtml();
 }
 
+function digestSettings() {
+  const d = (S.userDoc && S.userDoc.digest) || {};
+  return {
+    daily: !!d.daily, weekly: !!d.weekly,
+    content: d.content || 'both',
+    continueWatching: d.continueWatching !== false,
+    lists: Array.isArray(d.lists) ? d.lists : []
+  };
+}
+
+function toggleRow(label, hint, on, action, disabled) {
+  let h = '<div class="row-between digest-row"><div><h3>' + label + '</h3><div class="small muted">' + hint + '</div></div>';
+  h += '<button type="button" class="toggle' + (on ? ' on' : '') + '" role="switch" aria-checked="' + on + '" aria-label="' + esc(label) + '"' + (disabled ? ' disabled' : '') + ' onclick="' + action + '"></button></div>';
+  return h;
+}
+
+function digestCardHtml() {
+  const d = digestSettings();
+  const verified = S.user && S.user.emailVerified;
+  const on = d.daily || d.weekly;
+  let h = '<div class="card"><h3 style="margin-bottom:2px">Email digests</h3>';
+  h += '<p class="small muted" style="margin-bottom:12px">What\'s coming up, sent to ' + esc(S.user ? S.user.email : '') + ' at 7 AM your time.</p>';
+  if (!verified) h += '<div class="msg notice" role="status">Verify your email to turn on digests.</div>';
+  h += toggleRow('Daily digest', 'Every morning: what\'s new for you today.', d.daily, 'setDigest(\'daily\', ' + !d.daily + ')', !verified);
+  h += toggleRow('Weekly digest', 'Sunday mornings: your week ahead.', d.weekly, 'setDigest(\'weekly\', ' + !d.weekly + ')', !verified);
+
+  if (on) {
+    h += '<div class="digest-opts">';
+    h += '<label>Include</label><div class="seg" role="group" aria-label="Include" style="margin-bottom:14px">';
+    [['both', 'TV and movies'], ['tv', 'TV'], ['movie', 'Movies']].forEach(o => {
+      h += '<button type="button" class="' + (d.content === o[0] ? 'on' : '') + '" aria-pressed="' + (d.content === o[0]) + '" onclick="setDigest(\'content\', \'' + o[0] + '\')">' + o[1] + '</button>';
+    });
+    h += '</div>';
+    if (d.content !== 'movie') {
+      h += toggleRow('Continue watching', 'Shows you\'re partway through, with the next episode.', d.continueWatching, 'setDigest(\'continueWatching\', ' + !d.continueWatching + ')', false);
+    }
+    if (S.playlists.length > 1) {
+      h += '<label style="margin-top:12px">Lists</label><div class="choice-row">';
+      h += '<button type="button" class="choice' + (!d.lists.length ? ' on' : '') + '" onclick="setDigestList(\'all\')">All lists</button>';
+      S.playlists.forEach(pl => {
+        const sel = d.lists.indexOf(pl.id) !== -1;
+        h += '<button type="button" class="choice' + (sel ? ' on' : '') + '" onclick="setDigestList(\'' + pl.id + '\')"><span class="dot" style="background:' + esc(pl.color || '#4CAF50') + '"></span>' + esc(pl.name) + '</button>';
+      });
+      h += '</div>';
+    }
+    h += '<div class="digest-test"><span class="small muted">Preview it now:</span>';
+    if (d.daily) h += '<button class="btn secondary small" onclick="sendTestDigest(\'daily\')"' + (S.digestTesting ? ' disabled' : '') + '>Send test daily</button>';
+    if (d.weekly) h += '<button class="btn secondary small" onclick="sendTestDigest(\'weekly\')"' + (S.digestTesting ? ' disabled' : '') + '>Send test weekly</button>';
+    h += '</div></div>';
+  }
+  h += '</div>';
+  return h;
+}
+
 function viewProfile() {
   const p = S.profile || {};
   const svcs = myServices();
@@ -2010,6 +2080,8 @@ function viewProfile() {
     h += '</div>';
   }
   h += '</div>';
+
+  h += digestCardHtml();
 
   h += '<div class="card row-between"><div><h3>Let people find me</h3>';
   h += '<div class="small muted">Others can search your username to invite you to a playlist.</div></div>';
@@ -3419,6 +3491,61 @@ window.deleteList = async function () {
     m.error = 'Couldn\'t delete the list: ' + e.message;
     renderModal();
   }
+};
+
+// ----- Email digests -----
+async function saveDigest(patch) {
+  const cur = digestSettings();
+  const next = Object.assign({}, cur, patch);
+  let tz = 'America/New_York';
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz; } catch (e) { /* ignore */ }
+  const fields = Object.assign({}, patch, {
+    enabled: !!(next.daily || next.weekly),
+    timeZone: tz,
+    name: (S.profile && S.profile.displayName) || ''
+  });
+  // Update the screen right away, then save
+  const prior = S.userDoc && S.userDoc.digest;
+  S.userDoc = Object.assign({}, S.userDoc || {}, { digest: Object.assign({}, prior || {}, fields) });
+  S.error = '';
+  render();
+  try {
+    await setDoc(doc(db, 'users', S.user.uid), { digest: fields }, { merge: true });
+  } catch (e) {
+    S.userDoc.digest = prior;
+    S.error = 'Couldn\'t save your email settings: ' + e.message;
+    render();
+  }
+}
+
+window.setDigest = function (field, value) {
+  const patch = {};
+  patch[field] = value;
+  saveDigest(patch);
+};
+
+window.setDigestList = function (pid) {
+  if (pid === 'all') { saveDigest({ lists: [] }); return; }
+  const sel = digestSettings().lists.filter(x => S.playlists.some(p => p.id === x));
+  const i = sel.indexOf(pid);
+  if (i === -1) sel.push(pid); else sel.splice(i, 1);
+  saveDigest({ lists: sel.length === S.playlists.length ? [] : sel });
+};
+
+window.sendTestDigest = async function (kind) {
+  S.digestTesting = true;
+  S.error = '';
+  S.notice = '';
+  render();
+  try {
+    const r = await api('testDigest', { kind: kind });
+    S.notice = 'Test ' + kind + ' digest sent to ' + r.sentTo + '.';
+  } catch (e) {
+    S.error = 'Couldn\'t send the test: ' + e.message;
+  }
+  S.digestTesting = false;
+  render();
+  window.scrollTo(0, 0);
 };
 
 // ----- Library filters -----
