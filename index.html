@@ -956,7 +956,7 @@ function tvMeta(d) {
   (d.seasonList || []).forEach(se => { counts[String(se.number)] = se.episodeCount; });
   return {
     seasonCounts: counts,
-    lastAired: d.lastAired ? { s: d.lastAired.s, e: d.lastAired.e } : null,
+    lastAired: d.lastAired ? { s: d.lastAired.s, e: d.lastAired.e, date: d.lastAired.date || null } : null,
     nextAir: d.nextAir || null,
     showStatus: d.status || ''
   };
@@ -1186,13 +1186,35 @@ function calendarEntries(startIso) {
   return out;
 }
 
+// The day an episode becomes watchable for you: its air date plus the show's calendar offset.
+// Returns null when the air date isn't known (treated as available).
+function availableOn(it, k) {
+  const p = parseEpKey(k);
+  if (!p) return null;
+  let airdate = null;
+  const eps = it.tvmazeId ? S.tvm[it.tvmazeId] : null;
+  if (eps) {
+    const ep = eps.find(x => x.s === p.s && x.e === p.e);
+    if (ep) airdate = ep.airdate;
+  }
+  if (!airdate && it.lastAired && it.lastAired.s === p.s && it.lastAired.e === p.e && it.lastAired.date) {
+    airdate = it.lastAired.date;
+  }
+  if (!airdate) return null;
+  return isoAddDays(airdate, parseFloat(it.dayOffset) || 0);
+}
+
 function continueWatching() {
+  const today = todayIso();
   const seen = {};
   const out = [];
   calPlaylists().forEach(pl => (S.items[pl.id] || []).forEach(it => {
     if (it.mediaType !== 'tv' || it.status !== 'watching' || seen[it.id]) return;
     const next = nextUpKey(it);
     if (!next) return;
+    // Wait until the episode is available on your platform (e.g. Peacock the day after Bravo)
+    const avail = availableOn(it, next);
+    if (avail && avail > today) return;
     seen[it.id] = true;
     out.push({ it: it, pid: pl.id, next: next });
   }));
