@@ -441,6 +441,25 @@
   .rail-next { font-size: 0.78rem; color: var(--muted); }
   .cal-setting { margin-top: 10px; }
   .cal-setting label { font-size: 0.78rem; margin-bottom: 4px; color: var(--muted); }
+
+  /* ---------- Phase 3: sharing ---------- */
+  .page-head.row-between { align-items: center; }
+  .pl-manage { margin-left: auto; font-size: 0.9rem; }
+  .invite-card {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px;
+    background: #F3EEFF; border: 1px solid #DDD0FB; border-radius: var(--r-card); padding: 14px 16px; margin-bottom: 16px;
+  }
+  .invite-text { flex: 1 1 200px; font-size: 0.95rem; }
+  .invite-actions { display: flex; gap: 8px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+  .swatch { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1px var(--border); cursor: pointer; padding: 0; }
+  .swatch.on { box-shadow: 0 0 0 2px var(--text); }
+  .people { border: 1px solid var(--border); border-radius: 12px; }
+  .person { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; }
+  .person + .person { border-top: 1px solid var(--border); }
+  .p-name { font-weight: 700; font-family: 'Nunito', sans-serif; }
+  .tab-icon { position: relative; display: inline-flex; }
+  .tab-badge { position: absolute; top: -2px; right: -4px; width: 9px; height: 9px; border-radius: 50%; background: var(--purple); box-shadow: 0 0 0 2px #fff; }
 </style>
 </head>
 <body>
@@ -455,7 +474,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, deleteDoc, collection, writeBatch, serverTimestamp,
-  query, where, onSnapshot, deleteField, arrayUnion, arrayRemove
+  query, where, onSnapshot, deleteField, arrayUnion, arrayRemove,
+  getDocs, orderBy, startAt, endAt, limit
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 // ---------- Config ----------
@@ -565,12 +585,18 @@ const S = {
   tvmLoading: {},           // tvmazeId -> true while fetching
   calError: '',
   linking: false,           // a TVmaze match batch is in flight
+  invites: [],              // pending invites sent to me
+  profileCache: {},         // uid -> public profile (names for members)
   modal: null               // { view: 'detail' | 'add' | 'services', ... }
 };
 
 let unsubPlaylists = null;
 let unsubItems = {};
 let unsubPeople = null;
+let unsubInvites = null;
+let peopleSearchTimer = null;
+
+const PL_COLORS = ['#4CAF50', '#7C3AED', '#2563EB', '#DB2777', '#EA580C', '#0D9488', '#CA8A04', '#475569'];
 
 function loadLibFilter() {
   const def = { type: 'all', status: 'all', platform: 'all' };
@@ -661,6 +687,12 @@ async function loadAccount() {
   ]);
   S.profile = pSnap.exists() ? pSnap.data() : null;
   S.userDoc = uSnap.exists() ? uSnap.data() : null;
+  // Older profiles predate name search; add the lowercase name so others can find them
+  if (S.profile && S.profile.displayName && !S.profile.displayNameLower) {
+    S.profile.displayNameLower = S.profile.displayName.toLowerCase();
+    setDoc(doc(db, 'profiles', uid), { displayNameLower: S.profile.displayNameLower }, { merge: true })
+      .catch(e => console.error('[WW] name backfill failed', e));
+  }
   S.personal = null;
   if (S.userDoc && S.userDoc.personalPlaylistId) {
     const plSnap = await step('read My List', getDoc(doc(db, 'playlists', S.userDoc.personalPlaylistId)));
@@ -672,6 +704,7 @@ function startListeners() {
   stopListeners();
   const uid = S.user.uid;
   const q = query(collection(db, 'playlists'), where('memberUids', 'array-contains', uid));
+  startInviteListener();
   unsubPlaylists = onSnapshot(q, (snap) => {
     const lists = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
     lists.sort((a, b) => {
@@ -705,7 +738,18 @@ function startListeners() {
   });
 }
 
+function startInviteListener() {
+  if (unsubInvites) unsubInvites();
+  const q = query(collection(db, 'invites'), where('toUid', '==', S.user.uid), where('status', '==', 'pending'));
+  unsubInvites = onSnapshot(q, (snap) => {
+    S.invites = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    onDataChange();
+  }, (err) => console.error('[WW] invites listener', err));
+}
+
 function stopListeners() {
+  if (unsubInvites) { unsubInvites(); unsubInvites = null; }
+  S.invites = [];
   if (unsubPlaylists) { unsubPlaylists(); unsubPlaylists = null; }
   Object.keys(unsubItems).forEach(pid => unsubItems[pid]());
   unsubItems = {};
@@ -721,6 +765,14 @@ function onDataChange() {
   // Refresh the detail view (membership or progress may have changed); the add form is never re-rendered mid-edit
   if (S.modal && S.modal.view === 'detail') {
     ensureCtx();
+    renderModal();
+  }
+  if (S.modal && S.modal.view === 'playlist') {
+    // The list was deleted, or I was removed from it
+    const found = S.playlists.some(p => p.id === S.modal.pid);
+    if (found) S.modal.seen = true;
+    else if (S.modal.seen) { S.modal = null; renderModal(); return; }
+    loadMemberProfiles(S.modal.pid);
     renderModal();
   }
 }
@@ -1037,6 +1089,131 @@ function continueWatching() {
   return out.sort((a, b) => ms(b) - ms(a)).slice(0, 12);
 }
 
+// ---------- Sharing views ----------
+function invitesHtml() {
+  if (!S.invites.length) return '';
+  let h = '';
+  S.invites.forEach(inv => {
+    h += '<div class="invite-card"><span class="dot" style="background:' + esc(inv.playlistColor || '#7C3AED') + '"></span>';
+    h += '<div class="invite-text"><strong>' + esc(inv.fromName || 'Someone') + '</strong>' + (inv.fromUsername ? ' <span class="muted">@' + esc(inv.fromUsername) + '</span>' : '');
+    h += ' invited you to <strong>' + esc(inv.playlistName || 'a list') + '</strong></div>';
+    h += '<div class="invite-actions"><button class="btn secondary small" onclick="answerInvite(\'' + esc(inv.id) + '\', false)">Decline</button>';
+    h += '<button class="btn small" onclick="answerInvite(\'' + esc(inv.id) + '\', true)">Join</button></div></div>';
+  });
+  return h;
+}
+
+function colorSwatchesHtml(current, action) {
+  let h = '<div class="swatches" role="radiogroup" aria-label="List color">';
+  PL_COLORS.forEach(c => {
+    const on = c.toLowerCase() === String(current || '').toLowerCase();
+    h += '<button type="button" class="swatch' + (on ? ' on' : '') + '" role="radio" aria-checked="' + on + '" aria-label="Color ' + c + '" style="background:' + c + '" onclick="' + action + '(\'' + c + '\')"></button>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function viewNewListModal() {
+  const m = S.modal;
+  let h = sheetTop('New list', false);
+  h += '<p class="muted small">Make a list to share, like the shows you watch together.</p>';
+  if (m.error) h += '<div class="msg error" role="alert">' + esc(m.error) + '</div>';
+  h += '<div class="field"><label for="nlName">Name</label>';
+  h += '<input class="input" id="nlName" maxlength="40" placeholder="Couch nights" value="' + esc(m.form.name) + '" oninput="S.modal.form.name = this.value"></div>';
+  h += '<div class="field"><label>Color</label>' + colorSwatchesHtml(m.form.color, 'setNewListColor') + '</div>';
+  h += '<div class="sheet-actions"><button class="btn secondary" onclick="closeModal()">Cancel</button>';
+  h += '<button class="btn" onclick="createList()"' + (m.saving ? ' disabled' : '') + '>' + (m.saving ? 'Creating…' : 'Create list') + '</button></div>';
+  return h;
+}
+
+function memberName(uid) {
+  if (S.user && uid === S.user.uid) return (S.profile && S.profile.displayName) || 'You';
+  const p = S.profileCache[uid];
+  return p ? p.displayName : 'Loading…';
+}
+
+function peopleResultsHtml() {
+  const m = S.modal;
+  const pl = S.playlists.find(p => p.id === m.pid);
+  if (!pl) return '';
+  if (m.searching) return '<p class="muted small">Searching…</p>';
+  if (m.searchError) return '<div class="msg error" role="alert">' + esc(m.searchError) + '</div>';
+  if (!m.q || m.q.trim().length < 2) return '';
+  if (!m.results.length) return '<p class="muted small">No one matches "' + esc(m.q) + '". They may have "Let people find me" turned off.</p>';
+  let h = '<div class="people">';
+  m.results.forEach(p => {
+    const isMember = (pl.memberUids || []).indexOf(p.uid) !== -1;
+    const sent = (m.sent || []).find(x => x.toUid === p.uid && x.status === 'pending');
+    h += '<div class="person"><div><div class="p-name">' + esc(p.displayName) + '</div><div class="small muted">@' + esc(p.username) + '</div></div>';
+    if (isMember) h += '<span class="small muted">In this list</span>';
+    else if (sent) h += '<span class="small muted">Invited</span>';
+    else h += '<button class="btn small" onclick="sendInvite(\'' + esc(p.uid) + '\')"' + (m.inviting === p.uid ? ' disabled' : '') + '>' + (m.inviting === p.uid ? 'Inviting…' : 'Invite') + '</button>';
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function viewPlaylistModal() {
+  const m = S.modal;
+  const pl = S.playlists.find(p => p.id === m.pid);
+  if (!pl) return sheetTop('List settings', false) + '<p class="muted">This list is no longer available.</p>';
+  const me = S.user.uid;
+  const isOwner = pl.ownerUid === me;
+  const dirty = m.form.name.trim() !== pl.name || m.form.color !== (pl.color || '#4CAF50');
+
+  let h = sheetTop('List settings', false);
+  if (m.error) h += '<div class="msg error" role="alert">' + esc(m.error) + '</div>';
+  if (m.notice) h += '<div class="msg notice" role="status">' + esc(m.notice) + '</div>';
+
+  h += '<div class="field"><label for="plName">Name</label>';
+  h += '<input class="input" id="plName" maxlength="40" value="' + esc(m.form.name) + '" oninput="setPlaylistName(this.value)"></div>';
+  h += '<div class="field"><label>Color</label>' + colorSwatchesHtml(m.form.color, 'setPlaylistColor') + '</div>';
+  h += '<button class="btn block" id="plSave" onclick="savePlaylist()"' + (dirty && !m.saving ? '' : ' disabled') + '>' + (m.saving ? 'Saving…' : 'Save changes') + '</button>';
+
+  if (pl.isPersonal) {
+    h += '<div class="section"><p class="muted small" style="margin:0">My List is just for you. To watch with someone, create a new list and invite them.</p></div>';
+    return h;
+  }
+
+  // Members
+  h += '<div class="section"><h3>Members</h3><div class="people">';
+  (pl.memberUids || []).forEach(uid => {
+    const p = S.profileCache[uid];
+    h += '<div class="person"><div><div class="p-name">' + esc(memberName(uid)) + (uid === me ? ' <span class="muted small">(you)</span>' : '') + '</div>';
+    h += '<div class="small muted">' + (p && p.username ? '@' + esc(p.username) : '') + (uid === pl.ownerUid ? (p && p.username ? ', owner' : 'Owner') : '') + '</div></div>';
+    if (isOwner && uid !== me) h += '<button class="remove-btn" style="margin:0" onclick="removeMember(\'' + esc(uid) + '\')">Remove</button>';
+    h += '</div>';
+  });
+  h += '</div></div>';
+
+  // Invite
+  h += '<div class="section"><h3>Invite people</h3>';
+  h += '<input class="input" id="peopleSearch" type="search" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Search by name or username" value="' + esc(m.q || '') + '" oninput="searchPeople(this.value)">';
+  h += '<div id="peopleResults" style="margin-top:10px">' + peopleResultsHtml() + '</div>';
+  const others = (m.sent || []).filter(x => x.playlistId === pl.id && (pl.memberUids || []).indexOf(x.toUid) === -1);
+  if (others.length) {
+    h += '<div class="small muted" style="margin:14px 0 6px;font-weight:700">Invites you\'ve sent</div><div class="people">';
+    others.forEach(x => {
+      h += '<div class="person"><div><div class="p-name">' + esc(x.toName || 'Someone') + '</div><div class="small muted">' + (x.toUsername ? '@' + esc(x.toUsername) : '') + '</div></div>';
+      h += x.status === 'pending'
+        ? '<span class="small muted">Waiting</span>'
+        : '<button class="btn secondary small" onclick="sendInvite(\'' + esc(x.toUid) + '\')">Invite again</button>';
+      h += '</div>';
+    });
+    h += '</div>';
+  }
+  h += '</div>';
+
+  // Leave / delete
+  h += '<div class="section">';
+  h += isOwner
+    ? '<button class="remove-btn" onclick="deleteList()">Delete this list</button><div class="hint">Removes the list and its titles for everyone.</div>'
+    : '<button class="remove-btn" onclick="leaveList()">Leave this list</button><div class="hint">You can rejoin if someone invites you again.</div>';
+  h += '</div>';
+  return h;
+}
+
 // ---------- Views ----------
 function viewLoading() {
   return '<div class="loading"><div class="spinner" aria-label="Loading"></div></div>';
@@ -1132,7 +1309,8 @@ function viewShell() {
   h += '<nav class="bottomnav">';
   TABS.forEach(t => {
     h += '<button type="button" class="' + (S.tab === t.id ? 'active' : '') + '" onclick="setTab(\'' + t.id + '\')" aria-label="' + t.label + '">';
-    h += ICONS[t.id] + '<span class="tab-label">' + t.label + '</span></button>';
+    const badge = t.id === 'home' && S.invites.length ? '<span class="tab-badge" aria-label="' + S.invites.length + ' invites"></span>' : '';
+    h += '<span class="tab-icon">' + ICONS[t.id] + badge + '</span><span class="tab-label">' + t.label + '</span></button>';
   });
   h += '</nav>';
   return h;
@@ -1200,6 +1378,7 @@ function viewHome() {
 
   let h = '<div class="page-head"><h1>Hi, ' + esc(name) + '</h1></div>';
   h += msgHtml();
+  h += invitesHtml();
 
   const sd = isoToDate(start), ed = isoToDate(end);
   const range = sd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' to ' +
@@ -1329,8 +1508,9 @@ function libraryTileHtml(it, pid) {
 }
 
 function viewLibrary() {
-  let h = '<div class="page-head"><h1>Library</h1></div>';
+  let h = '<div class="page-head row-between"><h1>Library</h1><button class="btn small" onclick="openNewList()">New list</button></div>';
   h += msgHtml();
+  h += invitesHtml();
   if (!S.playlists.length) {
     h += '<div class="loading" style="min-height:160px"><div class="spinner" aria-label="Loading"></div></div>';
     return h;
@@ -1347,7 +1527,9 @@ function viewLibrary() {
     h += '<div class="pl-head"><span class="dot" style="background:' + esc(pl.color || '#4CAF50') + '"></span>';
     h += '<h2>' + esc(pl.name) + '</h2><span class="count">';
     h += filtering ? items.length + ' of ' + all.length : all.length + (all.length === 1 ? ' title' : ' titles');
-    h += '</span></div>';
+    const n = (pl.memberUids || []).length;
+    if (!pl.isPersonal) h += ', ' + (n === 1 ? 'just you' : n + ' people');
+    h += '</span><button class="link-btn pl-manage" onclick="openPlaylist(\'' + pl.id + '\')">Settings</button></div>';
     if (!all.length) {
       h += '<div class="card empty"><p class="muted">Nothing here yet. Search for a show or movie and add it to this list.</p>';
       h += '<button class="btn" onclick="setTab(\'search\')">Search</button></div>';
@@ -1900,6 +2082,8 @@ function renderModal() {
   if (m.view === 'detail') inner = viewDetailModal();
   else if (m.view === 'add') inner = viewAddModal();
   else if (m.view === 'services') inner = viewServicesModal();
+  else if (m.view === 'newList') inner = viewNewListModal();
+  else if (m.view === 'playlist') inner = viewPlaylistModal();
   // Keep the scroll position when re-rendering the same view (e.g. after a live update)
   const sheet = root.querySelector('.sheet');
   const sameView = sheet && sheet.getAttribute('data-view') === m.view + ':' + (m.key || '');
@@ -1996,6 +2180,7 @@ window.completeOnboarding = async function () {
     batch.set(doc(db, 'profiles', uid), {
       username: username,
       displayName: displayName,
+      displayNameLower: displayName.toLowerCase(),
       discoverable: true,
       createdAt: serverTimestamp()
     }, { merge: true });
@@ -2395,6 +2580,256 @@ window.setItemOffset = function (pid, value) {
   saveItemField(pid, fields);
 };
 
+// ----- Sharing: lists -----
+const profileLoading = {};
+async function loadMemberProfiles(pid) {
+  const pl = S.playlists.find(p => p.id === pid);
+  if (!pl) return;
+  const need = (pl.memberUids || []).filter(uid => uid !== S.user.uid && !S.profileCache[uid] && !profileLoading[uid]);
+  if (!need.length) return;
+  need.forEach(uid => { profileLoading[uid] = true; });
+  await Promise.all(need.map(async uid => {
+    try {
+      const snap = await getDoc(doc(db, 'profiles', uid));
+      if (snap.exists()) S.profileCache[uid] = snap.data();
+    } catch (e) { console.error('[WW] profile load failed', uid, e); }
+    delete profileLoading[uid];
+  }));
+  if (S.modal && S.modal.view === 'playlist') renderModal();
+}
+
+async function loadSentInvites() {
+  try {
+    const snap = await getDocs(query(collection(db, 'invites'), where('fromUid', '==', S.user.uid)));
+    if (S.modal && S.modal.view === 'playlist') {
+      S.modal.sent = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      renderModal();
+    }
+  } catch (e) { console.error('[WW] sent invites load failed', e); }
+}
+
+window.openNewList = function () {
+  const used = S.playlists.map(p => String(p.color || '').toLowerCase());
+  const color = PL_COLORS.find(c => used.indexOf(c.toLowerCase()) === -1) || PL_COLORS[1];
+  S.modal = { view: 'newList', form: { name: '', color: color }, error: '', saving: false };
+  renderModal();
+  const el = document.getElementById('nlName');
+  if (el) el.focus();
+};
+
+window.setNewListColor = function (c) {
+  S.modal.form.color = c;
+  renderModal();
+};
+
+window.createList = async function () {
+  const m = S.modal;
+  const name = String(m.form.name || '').trim();
+  if (!name) { m.error = 'Give the list a name.'; renderModal(); return; }
+  m.saving = true;
+  m.error = '';
+  renderModal();
+  const ref = doc(collection(db, 'playlists'));
+  try {
+    await step('create list', setDoc(ref, {
+      name: name,
+      color: m.form.color,
+      ownerUid: S.user.uid,
+      memberUids: [S.user.uid],
+      isPersonal: false,
+      createdAt: serverTimestamp()
+    }, { merge: true }));
+    window.openPlaylist(ref.id);
+  } catch (e) {
+    m.saving = false;
+    m.error = 'Couldn\'t create the list: ' + e.message;
+    renderModal();
+  }
+};
+
+window.openPlaylist = function (pid) {
+  const pl = S.playlists.find(p => p.id === pid);
+  S.modal = {
+    view: 'playlist', pid: pid,
+    form: { name: pl ? pl.name : '', color: pl ? (pl.color || '#4CAF50') : PL_COLORS[0] },
+    q: '', results: [], searching: false, searchError: '', sent: [], inviting: null,
+    error: '', notice: '', saving: false
+  };
+  renderModal();
+  loadMemberProfiles(pid);
+  loadSentInvites();
+};
+
+window.setPlaylistName = function (v) {
+  const m = S.modal;
+  m.form.name = v;
+  const pl = S.playlists.find(p => p.id === m.pid);
+  const btn = document.getElementById('plSave');
+  if (btn && pl) btn.disabled = !(v.trim() && (v.trim() !== pl.name || m.form.color !== (pl.color || '#4CAF50')));
+};
+
+window.setPlaylistColor = function (c) {
+  S.modal.form.color = c;
+  renderModal();
+};
+
+window.savePlaylist = async function () {
+  const m = S.modal;
+  const name = m.form.name.trim();
+  if (!name) { m.error = 'The list needs a name.'; renderModal(); return; }
+  m.saving = true;
+  m.error = '';
+  renderModal();
+  try {
+    await setDoc(doc(db, 'playlists', m.pid), { name: name, color: m.form.color, updatedAt: serverTimestamp() }, { merge: true });
+    m.notice = 'Saved.';
+  } catch (e) {
+    m.error = 'Couldn\'t save: ' + e.message;
+  }
+  m.saving = false;
+  renderModal();
+};
+
+// ----- Sharing: people search and invites -----
+window.searchPeople = function (v) {
+  const m = S.modal;
+  m.q = v;
+  clearTimeout(peopleSearchTimer);
+  peopleSearchTimer = setTimeout(runPeopleSearch, 250);
+};
+
+let peopleSearchSeq = 0;
+async function runPeopleSearch() {
+  const m = S.modal;
+  if (!m || m.view !== 'playlist') return;
+  const q = String(m.q || '').trim().toLowerCase().replace(/^@/, '');
+  const box = () => document.getElementById('peopleResults');
+  if (q.length < 2) {
+    m.results = [];
+    if (box()) box().innerHTML = peopleResultsHtml();
+    return;
+  }
+  const seq = ++peopleSearchSeq;
+  m.searching = true;
+  m.searchError = '';
+  if (box()) box().innerHTML = peopleResultsHtml();
+  try {
+    const col = collection(db, 'profiles');
+    const [byUser, byName] = await Promise.all([
+      getDocs(query(col, orderBy('username'), startAt(q), endAt(q + '\uf8ff'), limit(10))),
+      getDocs(query(col, orderBy('displayNameLower'), startAt(q), endAt(q + '\uf8ff'), limit(10)))
+    ]);
+    if (seq !== peopleSearchSeq || S.modal !== m) return;
+    const found = {};
+    byUser.docs.concat(byName.docs).forEach(d => {
+      const p = d.data();
+      if (d.id === S.user.uid || p.discoverable !== true) return;
+      found[d.id] = { uid: d.id, displayName: p.displayName || p.username, username: p.username };
+      S.profileCache[d.id] = p;
+    });
+    m.results = Object.keys(found).map(k => found[k]).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  } catch (e) {
+    if (seq !== peopleSearchSeq) return;
+    m.searchError = 'Search failed: ' + e.message;
+  }
+  m.searching = false;
+  if (box()) box().innerHTML = peopleResultsHtml();
+}
+
+window.sendInvite = async function (toUid) {
+  const m = S.modal;
+  const pl = S.playlists.find(p => p.id === m.pid);
+  const to = S.profileCache[toUid] || {};
+  if (!pl) return;
+  m.inviting = toUid;
+  m.error = '';
+  const box = document.getElementById('peopleResults');
+  if (box) box.innerHTML = peopleResultsHtml();
+  try {
+    await step('send invite', setDoc(doc(db, 'invites', pl.id + '_' + toUid), {
+      playlistId: pl.id,
+      playlistName: pl.name,
+      playlistColor: pl.color || '#7C3AED',
+      fromUid: S.user.uid,
+      fromName: (S.profile && S.profile.displayName) || '',
+      fromUsername: (S.profile && S.profile.username) || '',
+      toUid: toUid,
+      toName: to.displayName || '',
+      toUsername: to.username || '',
+      status: 'pending',
+      createdAt: serverTimestamp()
+    }, { merge: true }));
+    m.notice = 'Invite sent to ' + (to.displayName || 'them') + '.';
+    const existing = (m.sent || []).find(x => x.toUid === toUid && x.playlistId === pl.id);
+    if (existing) existing.status = 'pending';
+    else m.sent.push({ playlistId: pl.id, toUid: toUid, toName: to.displayName, toUsername: to.username, status: 'pending' });
+  } catch (e) {
+    m.error = 'Couldn\'t send the invite. ' + (e.code === 'permission-denied' ? 'They may have turned off "Let people find me."' : e.message);
+  }
+  m.inviting = null;
+  renderModal();
+};
+
+window.answerInvite = async function (inviteId, accept) {
+  const inv = S.invites.find(x => x.id === inviteId);
+  if (!inv) return;
+  S.error = '';
+  S.notice = '';
+  try {
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'invites', inviteId), { status: accept ? 'accepted' : 'declined', respondedAt: serverTimestamp() }, { merge: true });
+    if (accept) batch.set(doc(db, 'playlists', inv.playlistId), { memberUids: arrayUnion(S.user.uid) }, { merge: true });
+    await step(accept ? 'join list' : 'decline invite', batch.commit());
+    if (accept) S.notice = 'You joined ' + (inv.playlistName || 'the list') + '.';
+  } catch (e) {
+    S.error = 'Couldn\'t ' + (accept ? 'join' : 'decline') + ': ' + e.message;
+  }
+  render();
+};
+
+window.removeMember = async function (uid) {
+  const m = S.modal;
+  if (!confirm('Remove ' + memberName(uid) + ' from this list?')) return;
+  try {
+    await setDoc(doc(db, 'playlists', m.pid), { memberUids: arrayRemove(uid), updatedAt: serverTimestamp() }, { merge: true });
+  } catch (e) {
+    m.error = 'Couldn\'t remove them: ' + e.message;
+    renderModal();
+  }
+};
+
+window.leaveList = async function () {
+  const m = S.modal;
+  const pl = S.playlists.find(p => p.id === m.pid);
+  if (!confirm('Leave ' + (pl ? pl.name : 'this list') + '? It will disappear from your Library and calendar.')) return;
+  try {
+    await setDoc(doc(db, 'playlists', m.pid), { memberUids: arrayRemove(S.user.uid), updatedAt: serverTimestamp() }, { merge: true });
+    S.modal = null;
+    renderModal();
+  } catch (e) {
+    m.error = 'Couldn\'t leave the list: ' + e.message;
+    renderModal();
+  }
+};
+
+window.deleteList = async function () {
+  const m = S.modal;
+  const pl = S.playlists.find(p => p.id === m.pid);
+  if (!pl || !confirm('Delete ' + pl.name + ' for everyone? Its titles and progress will be removed.')) return;
+  try {
+    const items = await getDocs(collection(db, 'playlists', pl.id, 'items'));
+    const batch = writeBatch(db);
+    items.docs.slice(0, 450).forEach(d => batch.delete(d.ref));
+    batch.delete(doc(db, 'playlists', pl.id));
+    await step('delete list', batch.commit());
+    S.modal = null;
+    renderModal();
+  } catch (e) {
+    m.error = 'Couldn\'t delete the list: ' + e.message;
+    renderModal();
+  }
+};
+
 // ----- Library filters -----
 window.setLibFilter = function (name, value) {
   S.lib[name] = value;
@@ -2617,6 +3052,7 @@ onAuthStateChanged(auth, async (user) => {
     S.calError = '';
     S.linking = false;
     S.weekOffset = 0;
+    S.profileCache = {};
     S.search = { q: '', results: [], loading: false, error: '', done: false, reqId: 0 };
     S.screen = 'auth';
     renderModal();
