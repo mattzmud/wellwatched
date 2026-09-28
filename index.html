@@ -472,6 +472,14 @@
     border: none; background: rgba(26, 26, 46, 0.65); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
   }
   .rec-dismiss svg { width: 13px; height: 13px; }
+
+  /* ---------- Movie plans ---------- */
+  .plan-card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; background: #F3EEFF; border-radius: 12px; padding: 12px 14px; }
+  .plan-card h3 { margin: 0; }
+  .plan-actions { display: flex; align-items: center; gap: 14px; }
+  .plan-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .plan-form label { font-size: 0.78rem; margin-bottom: 4px; color: var(--muted); }
+  .cal-entry.plan .cal-label { color: var(--purple); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -1113,7 +1121,18 @@ function calendarEntries(startIso) {
           epKey: k, aired: ep.airdate <= today, watched: isWatched(it, k)
         }, pl);
       });
-    } else if (it.status === 'want' && it.releases) {
+    } else if (it.mediaType === 'movie') {
+      const plan = it.plan && it.plan.date ? it.plan : null;
+      if (plan && plan.date >= startIso && plan.date <= endIso) {
+        add({
+          id: it.id + '|plan|' + plan.date, date: plan.date, kind: 'plan', itemId: it.id,
+          mediaType: 'movie', tmdbId: it.tmdbId, title: it.title, posterPath: it.posterPath,
+          label: (plan.where === 'home' ? 'Watching at home' : 'Seeing it in theaters') + (plan.time ? ', ' + fmtTime(plan.time) : ''),
+          platform: plan.where === 'home' && it.platform ? it.platform.name : '',
+          aired: plan.date <= today, watched: false, sortTime: plan.time || ''
+        }, pl);
+      }
+      if (it.status !== 'want' || !it.releases) return;
       [['theatrical', 'In theaters'], ['digital', 'Digital release']].forEach(r => {
         const date = it.releases[r[0]];
         if (!date || date < startIso || date > endIso) return;
@@ -1610,7 +1629,7 @@ function calChipsHtml() {
 
 function calEntryHtml(en) {
   const single = en.pls.length === 1;
-  let h = '<div class="cal-entry' + (en.watched ? ' done' : '') + '">';
+  let h = '<div class="cal-entry' + (en.watched ? ' done' : '') + (en.kind === 'plan' ? ' plan' : '') + '">';
   h += '<button type="button" class="cal-open" onclick="openDetail(\'' + en.mediaType + '\',' + parseFloat(en.tmdbId) + ',\'' + en.pls[0].pid + '\')">';
   h += '<span class="cal-thumb">' + (en.posterPath ? '<img loading="lazy" src="' + THUMB_BASE + esc(en.posterPath) + '" alt="">' : '') + '</span>';
   h += '<span class="cal-text"><span class="cal-title">' + esc(en.title) + '</span>';
@@ -1619,6 +1638,12 @@ function calEntryHtml(en) {
   en.pls.forEach(p => { h += '<span class="dot sm" title="' + esc(p.name) + '" style="background:' + esc(p.color) + '"></span>'; });
   if (en.platform) h += '<span>' + esc(en.platform) + '</span>';
   h += '</span></span></button>';
+  if (en.kind === 'plan' && en.aired) {
+    const action = single
+      ? 'calCompletePlan(\'' + en.pls[0].pid + '\',\'' + en.itemId + '\')'
+      : 'openDetail(\'movie\',' + parseFloat(en.tmdbId) + ',\'' + en.pls[0].pid + '\')';
+    h += '<button type="button" class="check" aria-label="Mark as seen: ' + esc(en.title) + '" onclick="' + action + '"></button>';
+  }
   if (en.kind === 'ep' && en.aired) {
     // With more than one list, open the sheet so you choose which list's progress to update
     const action = single
@@ -2186,6 +2211,54 @@ function myTakeHtml(d) {
   return h;
 }
 
+const PLAN_WHERE = { theater: 'in theaters', home: 'at home' };
+
+function fmtTime(hhmm) {
+  if (!hhmm) return '';
+  const p = hhmm.split(':');
+  const d = new Date(2000, 0, 1, parseFloat(p[0]), parseFloat(p[1]));
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function planSummary(plan) {
+  const parts = [isoToDate(plan.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })];
+  if (plan.time) parts.push(fmtTime(plan.time));
+  return parts.join(' at ') + (plan.where ? ', ' + PLAN_WHERE[plan.where] : '');
+}
+
+function moviePlanHtml(item) {
+  const m = S.modal;
+  const plan = item.plan && item.plan.date ? item.plan : null;
+  const today = todayIso();
+  let h = '<div class="section"><h3>Plan to watch</h3>';
+  if (plan && !m.editPlan) {
+    h += '<div class="plan-card"><div><div class="recap-label">' + (plan.date < today ? 'You planned to see it' : 'Your plan') + '</div>';
+    h += '<h3>' + esc(planSummary(plan)) + '</h3></div>';
+    h += '<div class="plan-actions">';
+    if (plan.date <= today) h += '<button class="btn small" onclick="completePlan()">Mark as seen</button>';
+    h += '<button class="link-btn small" onclick="editPlan()">Change</button>';
+    h += '<button class="link-btn small" style="color:var(--danger)" onclick="clearPlan()">Remove</button>';
+    h += '</div></div>';
+    return h + '</div>';
+  }
+  const where = draftOr('planWhere', plan ? plan.where : 'theater');
+  h += '<p class="small muted" style="margin-bottom:10px">Pick the day you\'re going to watch it and it\'ll show on your calendar.</p>';
+  h += '<div class="plan-form">';
+  h += '<div><label for="planDate">Date</label><input class="input" type="date" id="planDate" min="' + today + '" value="' + esc(draftOr('planDate', plan ? plan.date : '')) + '" onchange="setDraft(\'planDate\', this.value)"></div>';
+  h += '<div><label for="planTime">Time (optional)</label><input class="input" type="time" id="planTime" value="' + esc(draftOr('planTime', plan ? (plan.time || '') : '')) + '" onchange="setDraft(\'planTime\', this.value)"></div>';
+  h += '</div>';
+  h += '<div class="choice-row" style="margin:10px 0 12px">';
+  [['theater', 'In theaters'], ['home', 'At home']].forEach(o => {
+    h += '<button type="button" class="choice' + (where === o[0] ? ' on' : '') + '" onclick="setPlanWhere(\'' + o[0] + '\')">' + o[1] + '</button>';
+  });
+  h += '</div>';
+  h += '<div class="sheet-actions" style="margin-top:0">';
+  if (plan) h += '<button class="btn secondary" onclick="cancelEditPlan()">Cancel</button>';
+  h += '<button class="btn" onclick="savePlan()">' + (plan ? 'Save plan' : 'Add to calendar') + '</button></div>';
+  h += '</div>';
+  return h;
+}
+
 function movieWatchesHtml(item) {
   const dates = (Array.isArray(item.watchDates) ? item.watchDates.slice() : []).sort().reverse();
   let h = '<div class="section"><h3>Watch history</h3>';
@@ -2260,6 +2333,7 @@ function viewDetailModal() {
   if (item) {
     if (d.mediaType === 'movie') {
       if (mem.length > 1) h += '<div class="section"><h3>Tracking in</h3>' + trackingSwitcherHtml(mem) + '</div>';
+      h += moviePlanHtml(item);
       h += movieWatchesHtml(item);
     }
     h += myTakeHtml(d);
@@ -2778,6 +2852,83 @@ window.saveNote = async function (scope, id) {
 window.setMyRating = function (n) {
   const current = (myPeopleDoc().show || {}).rating || 0;
   savePeople({ show: { rating: current === n ? deleteField() : n } });
+};
+
+// ----- Movie plans -----
+window.setPlanWhere = function (w) {
+  S.modal.drafts = S.modal.drafts || {};
+  S.modal.drafts.planWhere = w;
+  renderModal();
+};
+
+window.editPlan = function () {
+  S.modal.editPlan = true;
+  renderModal();
+};
+
+window.cancelEditPlan = function () {
+  const m = S.modal;
+  m.editPlan = false;
+  ['planDate', 'planTime', 'planWhere'].forEach(k => { if (m.drafts) delete m.drafts[k]; });
+  renderModal();
+};
+
+window.savePlan = async function () {
+  const m = S.modal;
+  const item = ctxItem();
+  const date = val('planDate');
+  const time = val('planTime');
+  const where = draftOr('planWhere', item && item.plan ? item.plan.where : 'theater');
+  if (!date) { m.error2 = 'Pick a date for your plan.'; renderModal(); return; }
+  try {
+    await setDoc(itemRef(), { plan: { date: date, time: time || '', where: where }, updatedAt: serverTimestamp() }, { merge: true });
+    m.error2 = '';
+    m.editPlan = false;
+    ['planDate', 'planTime', 'planWhere'].forEach(k => { if (m.drafts) delete m.drafts[k]; });
+    renderModal();
+  } catch (e) {
+    m.error2 = 'Couldn\'t save your plan: ' + e.message;
+    renderModal();
+  }
+};
+
+window.clearPlan = async function () {
+  const m = S.modal;
+  if (!confirm('Remove this plan from your calendar?')) return;
+  try {
+    await setDoc(itemRef(), { plan: deleteField(), updatedAt: serverTimestamp() }, { merge: true });
+  } catch (e) {
+    m.error2 = 'Couldn\'t remove the plan: ' + e.message;
+    renderModal();
+  }
+};
+
+// Logs the watch on the planned date and clears the plan
+async function completePlanFor(pid, itemId) {
+  const it = findItem(pid, itemId);
+  if (!it || !it.plan || !it.plan.date) return;
+  await setDoc(doc(db, 'playlists', pid, 'items', itemId), {
+    watchDates: arrayUnion(it.plan.date), status: 'watched', plan: deleteField(), updatedAt: serverTimestamp()
+  }, { merge: true });
+}
+
+window.completePlan = async function () {
+  const m = S.modal;
+  try {
+    await completePlanFor(m.ctxPid, m.key);
+  } catch (e) {
+    m.error2 = 'Couldn\'t log it: ' + e.message;
+    renderModal();
+  }
+};
+
+window.calCompletePlan = async function (pid, itemId) {
+  try {
+    await completePlanFor(pid, itemId);
+  } catch (e) {
+    S.error = 'Couldn\'t log it: ' + e.message;
+    render();
+  }
 };
 
 // ----- Movie watch history -----
