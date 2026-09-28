@@ -486,7 +486,7 @@ import {
   applyActionCode, verifyPasswordResetCode, confirmPasswordReset
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, deleteDoc, collection, writeBatch, serverTimestamp,
+  initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, writeBatch, serverTimestamp,
   query, where, onSnapshot, deleteField, arrayUnion, arrayRemove,
   getDocs, orderBy, startAt, endAt, limit
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
@@ -547,7 +547,9 @@ function step(label, promise) {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+// Long polling avoids a Safari issue where Firestore's streaming connection
+// stalls silently after the signed-in user changes (e.g. right after signup)
+const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 
 const ICONS = {
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>',
@@ -3348,7 +3350,17 @@ onAuthStateChanged(auth, async (user) => {
   render();
   try {
     await loadAccount();
+    try { sessionStorage.removeItem('ww_reloaded'); } catch (e) { /* ignore */ }
   } catch (e) {
+    // Safety net: a stuck connection clears up with a fresh page load, so try that once
+    let alreadyReloaded = false;
+    try { alreadyReloaded = sessionStorage.getItem('ww_reloaded') === '1'; } catch (err) { /* ignore */ }
+    if (e.code === 'ww/timeout' && !alreadyReloaded) {
+      try { sessionStorage.setItem('ww_reloaded', '1'); } catch (err) { /* ignore */ }
+      console.warn('[WW] account load timed out, reloading once');
+      window.location.reload();
+      return;
+    }
     S.error = 'Couldn\'t load your account. ' + (e.code ? '[' + e.code + '] ' : '') + e.message;
   }
   S.screen = S.profile ? 'app' : 'onboarding';
