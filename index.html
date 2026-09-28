@@ -219,7 +219,11 @@
   .credits p { font-size: 0.85rem; color: var(--muted); }
 
   /* ---------- Phase 1b: tiles, modal, providers ---------- */
-  .tile { background: none; border: none; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; width: 100%; }
+  .tile {
+    background: none; border: none; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; width: 100%;
+    /* Buttons center their content vertically; pin it to the top so posters line up across a row */
+    display: flex; flex-direction: column; justify-content: flex-start; align-self: start;
+  }
   .tile:hover .poster { border-color: #CFC7B8; }
   .poster { position: relative; }
   .poster .badge {
