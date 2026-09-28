@@ -217,10 +217,99 @@
   .toggle.on { background: var(--green); }
   .toggle.on::after { left: 23px; }
   .credits p { font-size: 0.85rem; color: var(--muted); }
+
+  /* ---------- Phase 1b: tiles, modal, providers ---------- */
+  .tile { background: none; border: none; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; width: 100%; }
+  .tile:hover .poster { border-color: #CFC7B8; }
+  .poster { position: relative; }
+  .poster .badge {
+    position: absolute; top: 6px; right: 6px; background: var(--green); color: #fff;
+    border-radius: 999px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 800; box-shadow: 0 0 0 2px #fff;
+  }
+  .status { display: inline-block; font-size: 0.7rem; font-weight: 700; font-family: 'Nunito', sans-serif; padding: 1px 8px; border-radius: 999px; }
+  .status.watching, .status.watched { background: #EAF6EA; color: #2E6B31; }
+  .status.want { background: #F3EEFF; color: var(--purple); }
+  .status.finished { background: #EEF0F3; color: #4B5563; }
+  .status.dropped { background: #F5EFE6; color: #8A7A63; }
+
+  .pl-head { display: flex; align-items: center; gap: 10px; margin: 28px 0 14px; }
+  .pl-head:first-of-type { margin-top: 0; }
+  .pl-head h2 { margin: 0; }
+  .pl-head .count { color: var(--muted); font-size: 0.9rem; }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 50; background: rgba(26, 26, 46, 0.45);
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .sheet {
+    background: var(--card); width: 100%; max-height: 92vh; overflow-y: auto;
+    border-radius: var(--r-modal) var(--r-modal) 0 0;
+    padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
+    animation: sheetUp 0.22s ease-out;
+  }
+  @keyframes sheetUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+  @media (min-width: 768px) {
+    .overlay { align-items: center; padding: 24px; }
+    .sheet { max-width: 600px; border-radius: var(--r-modal); max-height: 88vh; padding: 28px; }
+  }
+  .sheet-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: #fff;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); flex: none;
+  }
+  .icon-btn svg { width: 18px; height: 18px; }
+
+  .d-hero { display: flex; gap: 16px; margin-bottom: 16px; }
+  .d-hero .poster { width: 110px; flex: none; }
+  .d-hero h2 { margin: 0 0 4px; font-size: 1.35rem; line-height: 1.2; }
+  .d-meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; }
+  .d-overview { font-size: 0.95rem; }
+  .section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
+  .section h3 { margin-bottom: 10px; }
+
+  .inlist { background: #FAF8F3; border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .inlist .top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-weight: 700; font-family: 'Nunito', sans-serif; }
+  .inlist .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .inlist label { font-size: 0.78rem; margin-bottom: 4px; color: var(--muted); }
+  select.input { padding: 10px 12px; appearance: auto; }
+  .remove-btn { margin-top: 10px; background: none; border: none; color: var(--danger); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 0; }
+
+  .prov-group { margin-bottom: 12px; }
+  .prov-group .gname { font-size: 0.8rem; font-weight: 700; font-family: 'Nunito', sans-serif; color: var(--muted); margin-bottom: 6px; }
+  .prov-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .prov { position: relative; width: 44px; height: 44px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: #fff; }
+  .prov img { width: 100%; height: 100%; display: block; }
+  .prov.mine { box-shadow: 0 0 0 3px var(--green); border-color: var(--green); }
+  .mine-note { font-size: 0.85rem; color: #2E6B31; margin: 0 0 10px; font-weight: 600; }
+  .attrib { font-size: 0.78rem; color: var(--muted); margin-top: 8px; }
+
+  .choice-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .choice {
+    border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 8px 14px;
+    font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.9rem; cursor: pointer; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .choice.on { border-color: var(--green); background: #EAF6EA; color: #2E6B31; }
+
+  .svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 10px; margin-top: 12px; }
+  .svc {
+    border: 1.5px solid var(--border); background: #fff; border-radius: 12px; padding: 10px 6px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; font: inherit; color: var(--text);
+  }
+  .svc img { width: 44px; height: 44px; border-radius: 10px; }
+  .svc span { font-size: 0.72rem; line-height: 1.2; text-align: center; }
+  .svc.on { border-color: var(--green); background: #EAF6EA; }
+  .svc-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .svc-chips img { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); }
+  .sheet-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .sheet-actions .btn { flex: 1; }
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div id="modal"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
@@ -229,7 +318,8 @@ import {
   signOut, sendPasswordResetEmail, sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, collection, writeBatch, serverTimestamp
+  getFirestore, doc, getDoc, setDoc, deleteDoc, collection, writeBatch, serverTimestamp,
+  query, where, onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 // ---------- Config ----------
@@ -243,10 +333,30 @@ const firebaseConfig = {
 };
 const WORKER_URL = "https://wellwatched-worker.matt-zmud.workers.dev";
 const IMG_BASE = "https://image.tmdb.org/t/p/w342";
+const LOGO_BASE = "https://image.tmdb.org/t/p/w92";
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 const APP_URL = "https://watch.wellreadco.app/";
 const VERIFY_SETTINGS = { url: APP_URL };
 const STEP_TIMEOUT_MS = 15000;
+
+const STATUS = {
+  tv: [
+    { id: 'watching', label: 'Watching' },
+    { id: 'want', label: 'Want to watch' },
+    { id: 'finished', label: 'Finished' },
+    { id: 'dropped', label: 'Dropped' }
+  ],
+  movie: [
+    { id: 'want', label: 'Want to watch' },
+    { id: 'watched', label: 'Watched' }
+  ]
+};
+const STATUS_ORDER = ['watching', 'want', 'watched', 'finished', 'dropped'];
+
+function statusLabel(mediaType, id) {
+  const s = (STATUS[mediaType] || []).find(x => x.id === id);
+  return s ? s.label : id;
+}
 
 // Fails loudly instead of hanging forever, and logs each step
 function step(label, promise) {
@@ -273,7 +383,9 @@ const ICONS = {
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>',
   library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M8 2l4 4 4-4"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
-  profile: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>'
+  profile: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>'
 };
 const TABS = [
   { id: 'home', label: 'Home' },
@@ -299,12 +411,20 @@ const S = {
   profile: null,
   userDoc: null,
   personal: null,
+  playlists: [],            // all playlists I'm a member of
+  items: {},                // playlistId -> [items]
   busy: false,
   busyLabel: '',
   error: '',
   notice: '',
-  search: { q: '', results: [], loading: false, error: '', done: false, reqId: 0 }
+  search: { q: '', results: [], loading: false, error: '', done: false, reqId: 0 },
+  detailCache: {},          // 'tv_123' -> details from Worker
+  providerCatalog: null,    // full US provider list for My Services
+  modal: null               // { view: 'detail' | 'add' | 'services', ... }
 };
+
+let unsubPlaylists = null;
+let unsubItems = {};
 
 // ---------- Utils ----------
 function esc(s) {
@@ -315,6 +435,21 @@ function esc(s) {
 function val(id) {
   const el = document.getElementById(id);
   return el ? el.value : '';
+}
+function itemKey(mediaType, tmdbId) {
+  return mediaType + '_' + tmdbId;
+}
+function myServices() {
+  return (S.userDoc && Array.isArray(S.userDoc.services)) ? S.userDoc.services : [];
+}
+function myServiceIds() {
+  return myServices().map(s => s.id);
+}
+function fmtDate(iso) {
+  if (!iso) return '';
+  const parts = iso.split('-');
+  const d = new Date(parseFloat(parts[0]), parseFloat(parts[1]) - 1, parseFloat(parts[2]));
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 function msgHtml() {
   let h = '';
@@ -367,6 +502,68 @@ async function loadAccount() {
   }
 }
 
+function startListeners() {
+  stopListeners();
+  const uid = S.user.uid;
+  const q = query(collection(db, 'playlists'), where('memberUids', 'array-contains', uid));
+  unsubPlaylists = onSnapshot(q, (snap) => {
+    const lists = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    lists.sort((a, b) => {
+      if (a.isPersonal && !b.isPersonal) return -1;
+      if (b.isPersonal && !a.isPersonal) return 1;
+      return String(a.name).localeCompare(String(b.name));
+    });
+    S.playlists = lists;
+    const ids = lists.map(l => l.id);
+    // Subscribe to items of new playlists
+    ids.forEach(pid => {
+      if (unsubItems[pid]) return;
+      unsubItems[pid] = onSnapshot(collection(db, 'playlists', pid, 'items'), (isnap) => {
+        S.items[pid] = isnap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+        onDataChange();
+      }, (err) => console.error('[WW] items listener', pid, err));
+    });
+    // Unsubscribe from playlists I'm no longer in
+    Object.keys(unsubItems).forEach(pid => {
+      if (ids.indexOf(pid) === -1) {
+        unsubItems[pid]();
+        delete unsubItems[pid];
+        delete S.items[pid];
+      }
+    });
+    onDataChange();
+  }, (err) => {
+    console.error('[WW] playlists listener', err);
+    S.error = 'Couldn\'t load your playlists: ' + err.message;
+    onDataChange();
+  });
+}
+
+function stopListeners() {
+  if (unsubPlaylists) { unsubPlaylists(); unsubPlaylists = null; }
+  Object.keys(unsubItems).forEach(pid => unsubItems[pid]());
+  unsubItems = {};
+  S.playlists = [];
+  S.items = {};
+}
+
+function onDataChange() {
+  if (S.screen !== 'app') return;
+  render();
+  // Refresh the detail view (membership may have changed), but never re-render a form mid-edit
+  if (S.modal && S.modal.view === 'detail') renderModal();
+}
+
+// Where is this title? -> [{ playlist, item }]
+function memberships(key) {
+  const out = [];
+  S.playlists.forEach(pl => {
+    const it = (S.items[pl.id] || []).find(i => i.id === key);
+    if (it) out.push({ playlist: pl, item: it });
+  });
+  return out;
+}
+
 // ---------- Views ----------
 function viewLoading() {
   return '<div class="loading"><div class="spinner" aria-label="Loading"></div></div>';
@@ -374,6 +571,16 @@ function viewLoading() {
 
 function brandHtml() {
   return '<div class="brand">Well<span class="w2">Watched</span></div>';
+}
+
+function posterHtml(posterPath, title, showBadge) {
+  let h = '<div class="poster">';
+  h += posterPath
+    ? '<img loading="lazy" src="' + IMG_BASE + esc(posterPath) + '" alt="' + esc(title) + ' poster">'
+    : '<span class="ph">' + esc((title || '?').charAt(0).toUpperCase()) + '</span>';
+  if (showBadge) h += '<span class="badge" aria-label="In your lists">&#10003;</span>';
+  h += '</div>';
+  return h;
 }
 
 function viewAuth() {
@@ -473,28 +680,49 @@ function viewHome() {
     h += '<div class="day' + (isToday ? ' today' : '') + '"><div class="dname">' + dayNames[i] + '</div><div class="dnum">' + d.getDate() + '</div></div>';
   }
   h += '</div>';
-  h += '<div class="card empty"><h3>Nothing on your calendar yet</h3>';
-  h += '<p class="muted">Find a show you\'re watching and new episodes will show up here on the day they drop.</p>';
+  h += '<div class="card empty"><h3>Your release calendar is coming soon</h3>';
+  h += '<p class="muted">Add the shows you\'re watching now, and their new episodes will appear here once the calendar is turned on.</p>';
   h += '<button class="btn" onclick="setTab(\'search\')">Find a show</button></div>';
   return h;
 }
 
 function viewLibrary() {
-  let h = '<div class="page-head"><h1>Library</h1><p class="muted">Your playlists.</p></div>';
+  let h = '<div class="page-head"><h1>Library</h1></div>';
   h += msgHtml();
-  if (S.personal) {
-    h += '<div class="card pl-row"><span class="dot" style="background:' + esc(S.personal.color || '#4CAF50') + '"></span>';
-    h += '<div><h3>' + esc(S.personal.name) + '</h3><div class="muted small">Just you</div></div></div>';
-  } else {
-    h += '<div class="card empty"><p class="muted">Your list couldn\'t be loaded. Refresh the page to try again.</p></div>';
+  if (!S.playlists.length) {
+    h += '<div class="loading" style="min-height:160px"><div class="spinner" aria-label="Loading"></div></div>';
+    return h;
   }
+  S.playlists.forEach(pl => {
+    const items = (S.items[pl.id] || []).slice().sort((a, b) => {
+      const sa = STATUS_ORDER.indexOf(a.status), sb = STATUS_ORDER.indexOf(b.status);
+      if (sa !== sb) return sa - sb;
+      return String(a.title).localeCompare(String(b.title));
+    });
+    h += '<div class="pl-head"><span class="dot" style="background:' + esc(pl.color || '#4CAF50') + '"></span>';
+    h += '<h2>' + esc(pl.name) + '</h2><span class="count">' + items.length + (items.length === 1 ? ' title' : ' titles') + '</span></div>';
+    if (!items.length) {
+      h += '<div class="card empty"><p class="muted">Nothing here yet. Search for a show or movie and add it to this list.</p>';
+      h += '<button class="btn" onclick="setTab(\'search\')">Search</button></div>';
+      return;
+    }
+    h += '<div class="results">';
+    items.forEach(it => {
+      h += '<button type="button" class="tile" onclick="openDetail(\'' + it.mediaType + '\',' + parseFloat(it.tmdbId) + ')">';
+      h += posterHtml(it.posterPath, it.title, false);
+      h += '<h3 style="font-size:0.95rem;margin-top:8px;line-height:1.3">' + esc(it.title) + '</h3>';
+      h += '<div class="meta small"><span class="status ' + esc(it.status) + '">' + esc(statusLabel(it.mediaType, it.status)) + '</span></div>';
+      h += '</button>';
+    });
+    h += '</div>';
+  });
   return h;
 }
 
 function viewSearch() {
   let h = '<div class="page-head"><h1>Search</h1><p class="muted">Shows and movies.</p></div>';
   h += '<form class="searchbar" onsubmit="event.preventDefault(); runSearch();">';
-  h += '<input class="input" id="searchInput" type="search" placeholder="Search by title" autocomplete="off" value="' + esc(S.search.q) + '">';
+  h += '<input class="input" id="searchInput" type="search" placeholder="Search by title" autocomplete="off" value="' + esc(S.search.q) + '" oninput="setSearchText(this.value)">';
   h += '<button class="btn" type="submit">Search</button></form>';
   h += '<div id="searchResults">' + searchResultsHtml() + '</div>';
   return h;
@@ -505,16 +733,15 @@ function searchResultsHtml() {
   if (s.loading) return '<div class="loading" style="min-height:160px"><div class="spinner" aria-label="Searching"></div></div>';
   if (s.error) return '<div class="msg error" role="alert">' + esc(s.error) + '</div>';
   if (!s.done) return '';
-  if (!s.results.length) return '<div class="card empty"><p class="muted">No shows or movies match "' + esc(s.q) + '". Check the spelling or try a shorter title.</p></div>';
+  if (!s.results.length) return '<div class="card empty"><p class="muted">No shows or movies match "' + esc(s.lastQ) + '". Check the spelling or try a shorter title.</p></div>';
   let h = '<div class="results">';
   s.results.forEach(r => {
-    const initial = (r.title || '?').charAt(0).toUpperCase();
-    h += '<div class="result"><div class="poster">';
-    h += r.posterPath
-      ? '<img loading="lazy" src="' + IMG_BASE + esc(r.posterPath) + '" alt="' + esc(r.title) + ' poster">'
-      : '<span class="ph">' + esc(initial) + '</span>';
-    h += '</div><h3>' + esc(r.title) + '</h3>';
-    h += '<div class="meta"><span class="pill ' + (r.mediaType === 'tv' ? 'tv">TV' : 'movie">Movie') + '</span>' + esc(r.year) + '</div></div>';
+    const inList = memberships(itemKey(r.mediaType, r.tmdbId)).length > 0;
+    h += '<button type="button" class="tile result" onclick="openDetail(\'' + r.mediaType + '\',' + parseFloat(r.tmdbId) + ')">';
+    h += posterHtml(r.posterPath, r.title, inList);
+    h += '<h3>' + esc(r.title) + '</h3>';
+    h += '<div class="meta"><span class="pill ' + (r.mediaType === 'tv' ? 'tv">TV' : 'movie">Movie') + '</span>' + esc(r.year) + '</div>';
+    h += '</button>';
   });
   h += '</div>';
   return h;
@@ -527,6 +754,7 @@ function renderSearchResults() {
 
 function viewProfile() {
   const p = S.profile || {};
+  const svcs = myServices();
   let h = '<div class="page-head"><h1>Profile</h1></div>';
   h += msgHtml();
   h += '<div class="stack">';
@@ -534,17 +762,247 @@ function viewProfile() {
   h += '<div class="muted">@' + esc(p.username) + '</div>';
   h += '<p class="small muted" style="margin:12px 0 0">' + esc(S.user ? S.user.email : '') + (S.user && S.user.emailVerified ? ' (verified)' : ' (not verified)') + '</p></div>';
 
+  h += '<div class="card"><div class="row-between"><div><h3>My services</h3>';
+  h += '<div class="small muted">' + (svcs.length ? 'Titles on these are highlighted.' : 'Pick the streaming services you pay for.') + '</div></div>';
+  h += '<button class="btn secondary small" onclick="openServices()">' + (svcs.length ? 'Edit' : 'Choose') + '</button></div>';
+  if (svcs.length) {
+    h += '<div class="svc-chips">';
+    svcs.forEach(sv => {
+      h += sv.logoPath ? '<img src="' + LOGO_BASE + esc(sv.logoPath) + '" alt="' + esc(sv.name) + '" title="' + esc(sv.name) + '">' : '<span class="pill tv">' + esc(sv.name) + '</span>';
+    });
+    h += '</div>';
+  }
+  h += '</div>';
+
   h += '<div class="card row-between"><div><h3>Let people find me</h3>';
   h += '<div class="small muted">Others can search your username to invite you to a playlist.</div></div>';
   h += '<button type="button" class="toggle' + (p.discoverable ? ' on' : '') + '" role="switch" aria-checked="' + (p.discoverable ? 'true' : 'false') + '" aria-label="Let people find me" onclick="toggleDiscoverable()"></button></div>';
 
   h += '<div class="card credits"><h3 style="margin-bottom:8px">About</h3>';
   h += '<p>Show and movie data from <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>';
+  h += '<p>Streaming availability from <a href="https://www.justwatch.com" target="_blank" rel="noopener">JustWatch</a>.</p>';
   h += '<p style="margin:0">TV schedule data from <a href="https://www.tvmaze.com" target="_blank" rel="noopener">TVmaze</a>.</p></div>';
 
   h += '<button class="btn secondary block" onclick="doSignOut()">Log out</button>';
   h += '</div>';
   return h;
+}
+
+// ---------- Modal views ----------
+function sheetTop(title, showBack) {
+  let h = '<div class="sheet-top">';
+  h += showBack ? '<button class="icon-btn" aria-label="Back" onclick="modalBack()">' + ICONS.back + '</button>' : '<span></span>';
+  if (title) h += '<h2 style="margin:0;flex:1;font-size:1.1rem">' + esc(title) + '</h2>';
+  h += '<button class="icon-btn" aria-label="Close" onclick="closeModal()">' + ICONS.close + '</button></div>';
+  return h;
+}
+
+function providerTiles(list, mine) {
+  let h = '<div class="prov-row">';
+  list.forEach(p => {
+    const isMine = mine.indexOf(p.id) !== -1;
+    h += '<div class="prov' + (isMine ? ' mine' : '') + '" title="' + esc(p.name) + '">';
+    h += p.logoPath ? '<img loading="lazy" src="' + LOGO_BASE + esc(p.logoPath) + '" alt="' + esc(p.name) + '">' : '';
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function whereToWatchHtml(d) {
+  const pv = d.providers || {};
+  const mine = myServiceIds();
+  const free = (pv.free || []).concat((pv.ads || []).filter(a => !(pv.free || []).some(f => f.id === a.id)));
+  const groups = [
+    { name: 'Stream', list: pv.stream || [] },
+    { name: 'Free', list: free },
+    { name: 'Rent', list: pv.rent || [] },
+    { name: 'Buy', list: pv.buy || [] }
+  ].filter(g => g.list.length);
+
+  let h = '<div class="section"><h3>Where to watch</h3>';
+  if (!groups.length) {
+    h += '<p class="muted small">Not available to stream, rent, or buy in the US right now.</p>';
+  } else {
+    const onMine = (pv.stream || []).concat(free).filter(p => mine.indexOf(p.id) !== -1);
+    if (onMine.length) h += '<p class="mine-note">On your services: ' + esc(onMine.map(p => p.name).join(', ')) + '</p>';
+    groups.forEach(g => {
+      h += '<div class="prov-group"><div class="gname">' + g.name + '</div>' + providerTiles(g.list, mine) + '</div>';
+    });
+  }
+  h += '<div class="attrib">Availability from JustWatch.';
+  if (pv.link) h += ' <a href="' + esc(pv.link) + '" target="_blank" rel="noopener">See all options on TMDB</a>';
+  h += '</div></div>';
+  return h;
+}
+
+// Options for "where I watch": this title's stream/free providers, then my services, then current value
+function platformOptions(d, current) {
+  const pv = (d && d.providers) || {};
+  const seen = {};
+  const out = [];
+  function add(p) {
+    if (!p || seen[p.id]) return;
+    seen[p.id] = true;
+    out.push({ id: p.id, name: p.name });
+  }
+  (pv.stream || []).forEach(add);
+  (pv.free || []).forEach(add);
+  (pv.ads || []).forEach(add);
+  myServices().forEach(add);
+  add(current);
+  return out;
+}
+
+function platformSelectHtml(id, options, currentId, onchange) {
+  let h = '<select class="input" id="' + id + '" onchange="' + onchange + '">';
+  h += '<option value=""' + (!currentId ? ' selected' : '') + '>Not sure yet</option>';
+  options.forEach(o => {
+    h += '<option value="' + o.id + '"' + (String(o.id) === String(currentId) ? ' selected' : '') + '>' + esc(o.name) + '</option>';
+  });
+  h += '</select>';
+  return h;
+}
+
+function statusSelectHtml(id, mediaType, current, onchange) {
+  let h = '<select class="input" id="' + id + '" onchange="' + onchange + '">';
+  (STATUS[mediaType] || []).forEach(s => {
+    h += '<option value="' + s.id + '"' + (s.id === current ? ' selected' : '') + '>' + s.label + '</option>';
+  });
+  h += '</select>';
+  return h;
+}
+
+function viewDetailModal() {
+  const m = S.modal;
+  let h = sheetTop('', false);
+  if (m.error) return h + '<div class="msg error" role="alert">' + esc(m.error) + '</div>';
+  const d = m.data;
+  if (!d) return h + '<div class="loading" style="min-height:220px"><div class="spinner" aria-label="Loading"></div></div>';
+
+  const meta = [];
+  meta.push(d.mediaType === 'tv' ? 'TV' : 'Movie');
+  if (d.year) meta.push(d.year);
+  if (d.mediaType === 'tv' && d.seasons) meta.push(d.seasons + (d.seasons === 1 ? ' season' : ' seasons'));
+  if (d.runtime) meta.push(d.runtime + ' min');
+
+  h += '<div class="d-hero">' + posterHtml(d.posterPath, d.title, false) + '<div>';
+  h += '<h2>' + esc(d.title) + '</h2>';
+  h += '<div class="d-meta">' + esc(meta.join(', ')) + '</div>';
+  if (d.genres && d.genres.length) h += '<div class="d-meta">' + esc(d.genres.slice(0, 3).join(', ')) + '</div>';
+  if (d.mediaType === 'tv' && d.networks && d.networks.length) h += '<div class="d-meta">' + esc(d.networks.join(', ')) + (d.status ? ' (' + esc(d.status) + ')' : '') + '</div>';
+  if (d.mediaType === 'movie' && d.releases) {
+    if (d.releases.theatrical) h += '<div class="d-meta">In theaters ' + esc(fmtDate(d.releases.theatrical)) + '</div>';
+    if (d.releases.digital) h += '<div class="d-meta">Digital release ' + esc(fmtDate(d.releases.digital)) + '</div>';
+  }
+  h += '</div></div>';
+  if (d.overview) h += '<p class="d-overview">' + esc(d.overview) + '</p>';
+  if (m.error2) h += '<div class="msg error" role="alert">' + esc(m.error2) + '</div>';
+
+  // In your lists
+  const mem = memberships(m.key);
+  const available = S.playlists.filter(pl => !mem.some(x => x.playlist.id === pl.id));
+  h += '<div class="section"><h3>' + (mem.length ? 'In your lists' : 'Add to a list') + '</h3>';
+  mem.forEach(x => {
+    const it = x.item, pl = x.playlist;
+    const pid = pl.id;
+    h += '<div class="inlist"><div class="top"><span class="dot" style="background:' + esc(pl.color || '#4CAF50') + '"></span>' + esc(pl.name) + '</div>';
+    h += '<div class="grid2"><div><label for="st_' + pid + '">Status</label>';
+    h += statusSelectHtml('st_' + pid, d.mediaType, it.status, 'setItemStatus(\'' + pid + '\', this.value)') + '</div>';
+    h += '<div><label for="pf_' + pid + '">Where I watch</label>';
+    h += platformSelectHtml('pf_' + pid, platformOptions(d, it.platform), it.platform ? it.platform.id : '', 'setItemPlatform(\'' + pid + '\', this.value)') + '</div></div>';
+    h += '<button class="remove-btn" onclick="removeItem(\'' + pid + '\')">Remove from ' + esc(pl.name) + '</button></div>';
+  });
+  if (available.length) {
+    h += '<button class="btn block" style="margin-top:' + (mem.length ? '6px' : '0') + '" onclick="showAdd()">' + (mem.length ? 'Add to another list' : 'Add to a list') + '</button>';
+  }
+  h += '</div>';
+
+  h += whereToWatchHtml(d);
+  return h;
+}
+
+function viewAddModal() {
+  const m = S.modal;
+  const d = m.data;
+  const f = m.form;
+  const mem = memberships(m.key);
+  const available = S.playlists.filter(pl => !mem.some(x => x.playlist.id === pl.id));
+
+  let h = sheetTop('Add ' + d.title, true);
+  if (m.error2) h += '<div class="msg error" role="alert">' + esc(m.error2) + '</div>';
+
+  h += '<div class="field"><label>List</label><div class="choice-row">';
+  available.forEach(pl => {
+    h += '<button type="button" class="choice' + (f.pid === pl.id ? ' on' : '') + '" onclick="setAddField(\'pid\', \'' + pl.id + '\')">';
+    h += '<span class="dot" style="background:' + esc(pl.color || '#4CAF50') + '"></span>' + esc(pl.name) + '</button>';
+  });
+  h += '</div></div>';
+
+  h += '<div class="field"><label>Status</label><div class="choice-row">';
+  (STATUS[d.mediaType] || []).forEach(s => {
+    h += '<button type="button" class="choice' + (f.status === s.id ? ' on' : '') + '" onclick="setAddField(\'status\', \'' + s.id + '\')">' + s.label + '</button>';
+  });
+  h += '</div></div>';
+
+  h += '<div class="field"><label for="addPlatform">Where I watch</label>';
+  h += platformSelectHtml('addPlatform', platformOptions(d, null), f.platformId, 'setAddField(\'platformId\', this.value, true)');
+  h += '<div class="hint">You can change this anytime.</div></div>';
+
+  h += '<div class="sheet-actions"><button class="btn secondary" onclick="modalBack()">Cancel</button>';
+  h += '<button class="btn" onclick="saveAdd()"' + (m.saving || !f.pid ? ' disabled' : '') + '>' + (m.saving ? 'Adding…' : 'Add') + '</button></div>';
+  return h;
+}
+
+function servicesGridHtml() {
+  const m = S.modal;
+  if (m.error) return '<div class="msg error" role="alert">' + esc(m.error) + '</div>';
+  if (!S.providerCatalog) return '<div class="loading" style="min-height:160px"><div class="spinner" aria-label="Loading"></div></div>';
+  const f = (m.filter || '').trim().toLowerCase();
+  const list = S.providerCatalog.filter(p => !f || p.name.toLowerCase().indexOf(f) !== -1);
+  if (!list.length) return '<p class="muted small" style="margin-top:12px">No services match "' + esc(m.filter) + '".</p>';
+  let h = '<div class="svc-grid">';
+  list.forEach(p => {
+    const on = m.selected.indexOf(p.id) !== -1;
+    h += '<button type="button" class="svc' + (on ? ' on' : '') + '" aria-pressed="' + (on ? 'true' : 'false') + '" onclick="toggleService(' + p.id + ')">';
+    h += p.logoPath ? '<img loading="lazy" src="' + LOGO_BASE + esc(p.logoPath) + '" alt="">' : '';
+    h += '<span>' + esc(p.name) + '</span></button>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function viewServicesModal() {
+  const m = S.modal;
+  let h = sheetTop('My services', false);
+  h += '<p class="muted small">Pick the services you pay for. Titles on them get highlighted.</p>';
+  h += '<input class="input" id="svcFilter" type="search" placeholder="Filter services" autocomplete="off" value="' + esc(m.filter || '') + '" oninput="filterServices(this.value)">';
+  h += '<div id="svcGrid">' + servicesGridHtml() + '</div>';
+  h += '<div class="sheet-actions"><button class="btn secondary" onclick="closeModal()">Cancel</button>';
+  h += '<button class="btn" onclick="saveServices()"' + (m.saving || !S.providerCatalog ? ' disabled' : '') + '>' + (m.saving ? 'Saving…' : 'Save ' + m.selected.length + (m.selected.length === 1 ? ' service' : ' services')) + '</button></div>';
+  return h;
+}
+
+function renderModal() {
+  const root = document.getElementById('modal');
+  const m = S.modal;
+  if (!m) {
+    root.innerHTML = '';
+    document.body.style.overflow = '';
+    return;
+  }
+  let inner = '';
+  if (m.view === 'detail') inner = viewDetailModal();
+  else if (m.view === 'add') inner = viewAddModal();
+  else if (m.view === 'services') inner = viewServicesModal();
+  // Keep the scroll position when re-rendering the same view (e.g. after a live update)
+  const sheet = root.querySelector('.sheet');
+  const sameView = sheet && sheet.getAttribute('data-view') === m.view + ':' + (m.key || '');
+  const scrollTop = sheet ? sheet.scrollTop : 0;
+  root.innerHTML = '<div class="overlay" onclick="if (event.target === this) closeModal()"><div class="sheet" role="dialog" aria-modal="true" data-view="' + esc(m.view + ':' + (m.key || '')) + '">' + inner + '</div></div>';
+  document.body.style.overflow = 'hidden';
+  const newSheet = root.querySelector('.sheet');
+  if (newSheet && sameView) newSheet.scrollTop = scrollTop;
 }
 
 function render() {
@@ -640,11 +1098,14 @@ window.completeOnboarding = async function () {
     render();
     await loadAccount();
     S.busy = false;
+    S.busyLabel = '';
     S.screen = 'app';
     S.tab = 'home';
     render();
+    startListeners();
   } catch (e) {
     S.busy = false;
+    S.busyLabel = '';
     if (e.message === 'taken') {
       S.error = '@' + username + ' is taken. Try another username.';
     } else {
@@ -671,6 +1132,10 @@ window.setTab = function (id) {
   }
 };
 
+window.setSearchText = function (v) {
+  S.search.q = v;
+};
+
 window.runSearch = async function () {
   const q = val('searchInput').trim();
   S.search.q = q;
@@ -683,6 +1148,7 @@ window.runSearch = async function () {
     const data = await api('search', { query: q });
     if (reqId !== S.search.reqId) return;
     S.search.results = data.results || [];
+    S.search.lastQ = q;
     S.search.done = true;
   } catch (e) {
     if (reqId !== S.search.reqId) return;
@@ -690,6 +1156,203 @@ window.runSearch = async function () {
   }
   S.search.loading = false;
   renderSearchResults();
+};
+
+// ----- Detail -----
+window.openDetail = async function (mediaType, tmdbId) {
+  const key = itemKey(mediaType, tmdbId);
+  S.modal = { view: 'detail', key: key, mediaType: mediaType, tmdbId: tmdbId, data: S.detailCache[key] || null, error: '' };
+  renderModal();
+  if (S.detailCache[key]) return;
+  try {
+    const d = await api('details', { mediaType: mediaType, tmdbId: tmdbId });
+    S.detailCache[key] = d;
+    if (S.modal && S.modal.key === key) {
+      S.modal.data = d;
+      renderModal();
+    }
+  } catch (e) {
+    if (S.modal && S.modal.key === key) {
+      S.modal.error = 'Couldn\'t load details: ' + e.message;
+      renderModal();
+    }
+  }
+};
+
+window.closeModal = function () {
+  S.modal = null;
+  renderModal();
+};
+
+window.modalBack = function () {
+  if (!S.modal) return;
+  S.modal.view = 'detail';
+  S.modal.error2 = '';
+  S.modal.saving = false;
+  renderModal();
+};
+
+function findItem(pid, key) {
+  return (S.items[pid] || []).find(i => i.id === key) || null;
+}
+
+async function saveItemField(pid, fields) {
+  const m = S.modal;
+  if (!m) return;
+  try {
+    await setDoc(doc(db, 'playlists', pid, 'items', m.key),
+      Object.assign({}, fields, { updatedAt: serverTimestamp() }), { merge: true });
+    m.error2 = '';
+  } catch (e) {
+    m.error2 = 'Couldn\'t save that change: ' + e.message;
+    renderModal();
+  }
+}
+
+window.setItemStatus = function (pid, status) {
+  saveItemField(pid, { status: status });
+};
+
+window.setItemPlatform = function (pid, value) {
+  const m = S.modal;
+  const current = findItem(pid, m.key);
+  const opts = platformOptions(m.data, current && current.platform);
+  const p = opts.find(o => String(o.id) === String(value));
+  saveItemField(pid, { platform: p ? { id: p.id, name: p.name } : null });
+};
+
+window.removeItem = async function (pid) {
+  const m = S.modal;
+  const pl = S.playlists.find(x => x.id === pid);
+  if (!confirm('Remove ' + m.data.title + ' from ' + (pl ? pl.name : 'this list') + '?')) return;
+  try {
+    await deleteDoc(doc(db, 'playlists', pid, 'items', m.key));
+  } catch (e) {
+    m.error2 = 'Couldn\'t remove it: ' + e.message;
+    renderModal();
+  }
+};
+
+// ----- Add -----
+function defaultPlatformId(d) {
+  const mine = myServiceIds();
+  const pv = d.providers || {};
+  const streamable = (pv.stream || []).concat(pv.free || [], pv.ads || []);
+  const onMine = streamable.find(p => mine.indexOf(p.id) !== -1);
+  if (onMine) return String(onMine.id);
+  return streamable.length ? String(streamable[0].id) : '';
+}
+
+window.showAdd = function () {
+  const m = S.modal;
+  if (!m || !m.data) return;
+  const mem = memberships(m.key);
+  const available = S.playlists.filter(pl => !mem.some(x => x.playlist.id === pl.id));
+  m.view = 'add';
+  m.error2 = '';
+  m.saving = false;
+  m.form = {
+    pid: available.length ? available[0].id : '',
+    status: m.data.mediaType === 'tv' ? 'watching' : 'want',
+    platformId: defaultPlatformId(m.data)
+  };
+  renderModal();
+};
+
+window.setAddField = function (name, value, noRender) {
+  if (!S.modal || !S.modal.form) return;
+  S.modal.form[name] = value;
+  if (!noRender) renderModal();
+};
+
+window.saveAdd = async function () {
+  const m = S.modal;
+  if (!m || !m.form || !m.form.pid) return;
+  const d = m.data;
+  const f = m.form;
+  const opts = platformOptions(d, null);
+  const p = opts.find(o => String(o.id) === String(f.platformId));
+  const item = {
+    tmdbId: d.tmdbId,
+    mediaType: d.mediaType,
+    title: d.title,
+    year: d.year || '',
+    posterPath: d.posterPath || null,
+    genres: d.genres || [],
+    imdbId: d.imdbId || null,
+    tvdbId: d.tvdbId || null,
+    status: f.status,
+    platform: p ? { id: p.id, name: p.name } : null,
+    addedBy: S.user.uid,
+    addedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastRefreshed: serverTimestamp()
+  };
+  if (d.mediaType === 'tv') item.dayOffset = 0;
+  m.saving = true;
+  renderModal();
+  try {
+    await step('add item', setDoc(doc(db, 'playlists', f.pid, 'items', m.key), item, { merge: true }));
+    if (S.modal === m) {
+      m.view = 'detail';
+      m.saving = false;
+      renderModal();
+    }
+  } catch (e) {
+    m.saving = false;
+    m.error2 = 'Couldn\'t add it: ' + (e.code ? '[' + e.code + '] ' : '') + e.message;
+    renderModal();
+  }
+};
+
+// ----- My services -----
+window.openServices = async function () {
+  S.modal = { view: 'services', selected: myServiceIds().slice(), filter: '', error: '' };
+  renderModal();
+  if (S.providerCatalog) return;
+  try {
+    const data = await api('providers', {});
+    S.providerCatalog = data.providers || [];
+  } catch (e) {
+    if (S.modal && S.modal.view === 'services') S.modal.error = 'Couldn\'t load services: ' + e.message;
+  }
+  if (S.modal && S.modal.view === 'services') renderModal();
+};
+
+window.toggleService = function (id) {
+  const m = S.modal;
+  const i = m.selected.indexOf(id);
+  if (i === -1) m.selected.push(id); else m.selected.splice(i, 1);
+  renderModal();
+};
+
+window.filterServices = function (v) {
+  S.modal.filter = v;
+  const grid = document.getElementById('svcGrid');
+  if (grid) grid.innerHTML = servicesGridHtml();
+};
+
+window.saveServices = async function () {
+  const m = S.modal;
+  const catalog = S.providerCatalog || [];
+  const prior = myServices();
+  const services = m.selected.map(id => {
+    const p = catalog.find(x => x.id === id) || prior.find(x => x.id === id);
+    return p ? { id: p.id, name: p.name, logoPath: p.logoPath || null } : null;
+  }).filter(Boolean);
+  m.saving = true;
+  renderModal();
+  try {
+    await step('save services', setDoc(doc(db, 'users', S.user.uid), { services: services }, { merge: true }));
+    S.userDoc = Object.assign({}, S.userDoc || {}, { services: services });
+    S.modal = null;
+    renderModal();
+    render();
+  } catch (e) {
+    m.saving = false;
+    m.error = 'Couldn\'t save your services: ' + e.message;
+    renderModal();
+  }
 };
 
 window.toggleDiscoverable = async function () {
@@ -732,8 +1395,15 @@ window.refreshVerification = async function () {
 };
 
 window.doSignOut = async function () {
+  S.modal = null;
+  renderModal();
+  stopListeners();
   await signOut(auth);
 };
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && S.modal) window.closeModal();
+});
 
 // ---------- Boot ----------
 render();
@@ -746,11 +1416,15 @@ onAuthStateChanged(auth, async (user) => {
   S.busy = false;
   S.busyLabel = '';
   if (!user) {
+    stopListeners();
     S.profile = null;
     S.userDoc = null;
     S.personal = null;
+    S.modal = null;
+    S.detailCache = {};
     S.search = { q: '', results: [], loading: false, error: '', done: false, reqId: 0 };
     S.screen = 'auth';
+    renderModal();
     render();
     return;
   }
@@ -763,6 +1437,7 @@ onAuthStateChanged(auth, async (user) => {
   }
   S.screen = S.profile ? 'app' : 'onboarding';
   render();
+  if (S.screen === 'app') startListeners();
 });
 </script>
 </body>
