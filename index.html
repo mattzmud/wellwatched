@@ -480,6 +480,8 @@
   .plan-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .plan-form label { font-size: 0.78rem; margin-bottom: 4px; color: var(--muted); }
   .cal-entry.plan .cal-label { color: var(--purple); font-weight: 700; }
+
+  .inlist-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -2323,7 +2325,9 @@ function viewDetailModal() {
     h += '<div><label for="pf_' + pid + '">Where I watch</label>';
     h += platformSelectHtml('pf_' + pid, platformOptions(d, it.platform), it.platform ? it.platform.id : '', 'setItemPlatform(\'' + pid + '\', this.value)') + '</div></div>';
     if (d.mediaType === 'tv') h += calendarSettingHtml(it, pid);
-    h += '<button class="remove-btn" onclick="removeItem(\'' + pid + '\')">Remove from ' + esc(pl.name) + '</button></div>';
+    h += '<div class="inlist-actions">';
+    if (available.length) h += '<button class="link-btn small" onclick="showMove(\'' + pid + '\')">Move to another list</button>';
+    h += '<button class="remove-btn" style="margin:0" onclick="removeItem(\'' + pid + '\')">Remove from ' + esc(pl.name) + '</button></div></div>';
   });
   if (available.length) {
     h += '<button class="btn block" style="margin-top:' + (mem.length ? '6px' : '0') + '" onclick="showAdd()">' + (mem.length ? 'Add to another list' : 'Add to a list') + '</button>';
@@ -2341,6 +2345,31 @@ function viewDetailModal() {
   }
 
   h += whereToWatchHtml(d);
+  return h;
+}
+
+function viewMoveModal() {
+  const m = S.modal;
+  const d = m.data;
+  const from = S.playlists.find(p => p.id === m.moveFrom);
+  const mem = memberships(m.key);
+  const targets = S.playlists.filter(pl => !mem.some(x => x.playlist.id === pl.id));
+  let h = sheetTop('Move ' + d.title, true);
+  if (m.error2) h += '<div class="msg error" role="alert">' + esc(m.error2) + '</div>';
+  if (!from || !targets.length) return h + '<p class="muted">There\'s no other list to move this to.</p>';
+  h += '<p class="small muted">From <strong>' + esc(from.name) + '</strong> to:</p>';
+  h += '<div class="choice-row" style="margin-bottom:14px">';
+  targets.forEach(pl => {
+    h += '<button type="button" class="choice' + (m.moveTo === pl.id ? ' on' : '') + '" onclick="setMoveTo(\'' + pl.id + '\')">';
+    h += '<span class="dot" style="background:' + esc(pl.color || '#4CAF50') + '"></span>' + esc(pl.name) + '</button>';
+  });
+  h += '</div>';
+  h += '<p class="small muted">Progress, watch history, plans, and your notes and rating come with it.</p>';
+  if (m.othersNotes) {
+    h += '<div class="msg notice" role="status">' + esc(m.othersNotes) + ' ' + (m.othersNotes.indexOf(' and ') === -1 ? 'has' : 'have') + ' notes on this in ' + esc(from.name) + '. Those stay behind, since only they can edit their notes. They\'ll see them again if this is added back to ' + esc(from.name) + '.</div>';
+  }
+  h += '<div class="sheet-actions"><button class="btn secondary" onclick="modalBack()">Cancel</button>';
+  h += '<button class="btn" onclick="moveItem()"' + (m.saving || !m.moveTo ? ' disabled' : '') + '>' + (m.saving ? 'Moving…' : 'Move') + '</button></div>';
   return h;
 }
 
@@ -2434,6 +2463,7 @@ function renderModal() {
   let inner = '';
   if (m.view === 'detail') inner = viewDetailModal();
   else if (m.view === 'add') inner = viewAddModal();
+  else if (m.view === 'move') inner = viewMoveModal();
   else if (m.view === 'services') inner = viewServicesModal();
   else if (m.view === 'newList') inner = viewNewListModal();
   else if (m.view === 'playlist') inner = viewPlaylistModal();
@@ -3279,6 +3309,79 @@ window.clearLibFilters = function () {
   S.lib = { type: 'all', status: 'all', platform: 'all' };
   saveLibFilter();
   render();
+};
+
+// ----- Move between lists -----
+window.showMove = async function (fromPid) {
+  const m = S.modal;
+  if (!m || !m.data) return;
+  const mem = memberships(m.key);
+  const targets = S.playlists.filter(pl => !mem.some(x => x.playlist.id === pl.id));
+  m.view = 'move';
+  m.moveFrom = fromPid;
+  m.moveTo = targets.length === 1 ? targets[0].id : '';
+  m.othersNotes = '';
+  m.error2 = '';
+  m.saving = false;
+  renderModal();
+  // Check whether anyone else left notes that can't come along
+  try {
+    const snap = await getDocs(collection(db, 'playlists', fromPid, 'items', m.key, 'people'));
+    const names = snap.docs.filter(d => d.id !== S.user.uid).map(d => d.data())
+      .filter(p => (p.show && (p.show.note || p.show.rating)) || (p.episodes && Object.keys(p.episodes).length) || (p.seasons && Object.keys(p.seasons).length))
+      .map(p => p.name || 'Someone');
+    if (S.modal === m && m.view === 'move') {
+      m.othersNotes = names.join(' and ');
+      renderModal();
+    }
+  } catch (e) { console.error('[WW] notes check failed', e); }
+};
+
+window.setMoveTo = function (pid) {
+  S.modal.moveTo = pid;
+  renderModal();
+};
+
+window.moveItem = async function () {
+  const m = S.modal;
+  const from = m.moveFrom, to = m.moveTo;
+  const item = findItem(from, m.key);
+  if (!item || !to) return;
+  m.saving = true;
+  m.error2 = '';
+  renderModal();
+  try {
+    const data = Object.assign({}, item);
+    delete data.id;
+    data.updatedAt = serverTimestamp();
+    data.movedAt = serverTimestamp();
+    const myNotes = await getDoc(doc(db, 'playlists', from, 'items', m.key, 'people', S.user.uid));
+
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'playlists', to, 'items', m.key), data, { merge: true });
+    if (myNotes.exists()) {
+      batch.set(doc(db, 'playlists', to, 'items', m.key, 'people', S.user.uid), myNotes.data(), { merge: true });
+      batch.delete(doc(db, 'playlists', from, 'items', m.key, 'people', S.user.uid));
+    }
+    batch.delete(doc(db, 'playlists', from, 'items', m.key));
+    await step('move item', batch.commit());
+
+    if (S.modal === m) {
+      const toPl = S.playlists.find(p => p.id === to);
+      m.view = 'detail';
+      m.saving = false;
+      m.preferPid = to;
+      m.ctxPid = to;
+      m.season = null;
+      ensureCtx();
+      renderModal();
+      S.notice = 'Moved to ' + (toPl ? toPl.name : 'the new list') + '.';
+    }
+  } catch (e) {
+    m.saving = false;
+    m.error2 = 'Couldn\'t move it: ' + (e.code ? '[' + e.code + '] ' : '') + e.message;
+    renderModal();
+  }
 };
 
 // ----- Add -----
