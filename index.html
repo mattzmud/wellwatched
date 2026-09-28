@@ -244,6 +244,26 @@ const firebaseConfig = {
 const WORKER_URL = "https://wellwatched-worker.matt-zmud.workers.dev";
 const IMG_BASE = "https://image.tmdb.org/t/p/w342";
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+const APP_URL = "https://watch.wellreadco.app/";
+const VERIFY_SETTINGS = { url: APP_URL };
+const STEP_TIMEOUT_MS = 15000;
+
+// Fails loudly instead of hanging forever, and logs each step
+function step(label, promise) {
+  console.log('[WW] start: ' + label);
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error('Timed out at step: ' + label);
+      err.code = 'ww/timeout';
+      reject(err);
+    }, STEP_TIMEOUT_MS);
+  });
+  return Promise.race([promise, timeout]).then(
+    (v) => { clearTimeout(timer); console.log('[WW] done: ' + label); return v; },
+    (e) => { clearTimeout(timer); console.error('[WW] failed: ' + label, e); throw e; }
+  );
+}
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -280,6 +300,7 @@ const S = {
   userDoc: null,
   personal: null,
   busy: false,
+  busyLabel: '',
   error: '',
   notice: '',
   search: { q: '', results: [], loading: false, error: '', done: false, reqId: 0 }
@@ -334,14 +355,14 @@ async function api(action, data) {
 async function loadAccount() {
   const uid = S.user.uid;
   const [pSnap, uSnap] = await Promise.all([
-    getDoc(doc(db, 'profiles', uid)),
-    getDoc(doc(db, 'users', uid))
+    step('read profile', getDoc(doc(db, 'profiles', uid))),
+    step('read user settings', getDoc(doc(db, 'users', uid)))
   ]);
   S.profile = pSnap.exists() ? pSnap.data() : null;
   S.userDoc = uSnap.exists() ? uSnap.data() : null;
   S.personal = null;
   if (S.userDoc && S.userDoc.personalPlaylistId) {
-    const plSnap = await getDoc(doc(db, 'playlists', S.userDoc.personalPlaylistId));
+    const plSnap = await step('read My List', getDoc(doc(db, 'playlists', S.userDoc.personalPlaylistId)));
     if (plSnap.exists()) S.personal = Object.assign({ id: plSnap.id }, plSnap.data());
   }
 }
@@ -402,7 +423,7 @@ function viewOnboarding() {
   h += '<div class="field"><label for="obUsername">Username</label>';
   h += '<input class="input" id="obUsername" maxlength="20" autocapitalize="none" autocomplete="username" spellcheck="false" required oninput="this.value=this.value.toLowerCase()">';
   h += '<div class="hint">3–20 characters: lowercase letters, numbers, and underscores. You can\'t change it later yet.</div></div>';
-  h += '<button class="btn block" type="submit"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Saving…' : 'Continue') + '</button>';
+  h += '<button class="btn block" type="submit"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? esc(S.busyLabel || 'Saving…') : 'Continue') + '</button>';
   h += '</form>';
   h += '<div class="auth-foot"><button class="link-btn" type="button" onclick="doSignOut()">Log out</button></div>';
   h += '</div></div></div>';
@@ -557,7 +578,7 @@ window.submitAuth = async function () {
       S.notice = 'If an account exists for that email, a reset link is on its way.';
     } else if (S.authMode === 'signup') {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
-      try { await sendEmailVerification(cred.user); } catch (e) { /* non-blocking */ }
+      try { await sendEmailVerification(cred.user, VERIFY_SETTINGS); } catch (e) { console.error('[WW] verification email failed', e); }
     } else {
       await signInWithEmailAndPassword(auth, email, password);
     }
@@ -579,11 +600,14 @@ window.completeOnboarding = async function () {
     return;
   }
   S.busy = true;
+  S.busyLabel = 'Checking username…';
   render();
   const uid = S.user.uid;
   try {
-    const taken = await getDoc(doc(db, 'usernames', username));
+    const taken = await step('check username', getDoc(doc(db, 'usernames', username)));
     if (taken.exists()) throw new Error('taken');
+    S.busyLabel = 'Saving profile…';
+    render();
 
     const plRef = doc(collection(db, 'playlists'));
     const batch = writeBatch(db);
@@ -608,8 +632,10 @@ window.completeOnboarding = async function () {
       services: [],
       createdAt: serverTimestamp()
     }, { merge: true });
-    await batch.commit();
+    await step('save profile batch', batch.commit());
 
+    S.busyLabel = 'Loading your list…';
+    render();
     await loadAccount();
     S.busy = false;
     S.screen = 'app';
@@ -617,9 +643,11 @@ window.completeOnboarding = async function () {
     render();
   } catch (e) {
     S.busy = false;
-    S.error = (e.message === 'taken' || e.code === 'permission-denied')
-      ? '@' + username + ' is taken. Try another username.'
-      : 'Couldn\'t save your profile: ' + (e.message || 'unknown error');
+    if (e.message === 'taken') {
+      S.error = '@' + username + ' is taken. Try another username.';
+    } else {
+      S.error = 'Couldn\'t save your profile. ' + (e.code ? '[' + e.code + '] ' : '') + (e.message || 'Unknown error');
+    }
     render();
     const nameEl = document.getElementById('obName');
     const userEl = document.getElementById('obUsername');
@@ -679,7 +707,7 @@ window.resendVerification = async function () {
   S.error = '';
   S.notice = '';
   try {
-    await sendEmailVerification(auth.currentUser);
+    await sendEmailVerification(auth.currentUser, VERIFY_SETTINGS);
     S.notice = 'Verification email sent to ' + auth.currentUser.email + '.';
   } catch (e) {
     S.error = authErrorText(e);
@@ -726,7 +754,7 @@ onAuthStateChanged(auth, async (user) => {
   try {
     await loadAccount();
   } catch (e) {
-    S.error = 'Couldn\'t load your account: ' + e.message;
+    S.error = 'Couldn\'t load your account. ' + (e.code ? '[' + e.code + '] ' : '') + e.message;
   }
   S.screen = S.profile ? 'app' : 'onboarding';
   render();
