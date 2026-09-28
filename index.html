@@ -305,6 +305,78 @@
   .svc-chips img { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); }
   .sheet-actions { display: flex; gap: 10px; margin-top: 20px; }
   .sheet-actions .btn { flex: 1; }
+
+  /* ---------- Phase 1c: library filters, progress, episodes, notes ---------- */
+  .lib-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; align-items: center; }
+  .lib-filters select.input { width: auto; flex: 1 1 150px; max-width: 220px; }
+  .seg { display: flex; background: #EFEBE3; padding: 3px; border-radius: 10px; }
+  .seg button {
+    border: none; background: transparent; padding: 8px 14px; border-radius: 8px; cursor: pointer;
+    font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.9rem; color: var(--muted);
+  }
+  .seg button.on { background: #fff; color: var(--text); }
+  @media (max-width: 480px) {
+    .seg { flex: 1 1 100%; }
+    .seg button { flex: 1; }
+    .lib-filters select.input { max-width: none; }
+  }
+
+  .progress { height: 5px; background: #EFEBE3; border-radius: 999px; overflow: hidden; margin: 6px 0 2px; }
+  .progress span { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+  .progress.big { height: 8px; margin: 0 0 6px; }
+
+  .recap { background: #F3EEFF; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .recap h3 { margin-bottom: 4px; }
+  .recap p { margin: 0; }
+  .recap-label { font-size: 0.78rem; font-weight: 700; font-family: 'Nunito', sans-serif; color: var(--purple); margin-bottom: 2px; }
+  .upnext {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    border: 1.5px solid var(--green); border-radius: 12px; padding: 12px 14px;
+  }
+  .upnext .recap-label { color: #2E6B31; }
+
+  .stars { display: flex; gap: 2px; margin-bottom: 10px; }
+  .star { background: none; border: none; cursor: pointer; font-size: 1.6rem; line-height: 1; color: #D6D0C4; padding: 2px; }
+  .star.on { color: #E8A317; }
+  .stars-static { color: #E8A317; letter-spacing: 1px; }
+  textarea.note { resize: vertical; min-height: 72px; line-height: 1.45; }
+  .note-actions { display: flex; justify-content: flex-end; margin: 6px 0 4px; }
+  .other-note { font-size: 0.9rem; background: #FAF8F3; border-left: 3px solid var(--purple); padding: 8px 10px; border-radius: 0 8px 8px 0; margin-top: 8px; }
+
+  .season-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; }
+  .season-tabs button {
+    flex: none; border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 6px 12px;
+    font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: var(--text);
+  }
+  .season-tabs button.on { background: var(--text); border-color: var(--text); color: #fff; }
+  .season-bar { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 10px; font-size: 0.9rem; }
+  .note-box { background: #FAF8F3; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+
+  .eps { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .ep + .ep { border-top: 1px solid var(--border); }
+  .ep-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+  .check {
+    width: 28px; height: 28px; flex: none; border-radius: 50%; border: 2px solid #CFC7B8; background: #fff;
+    color: #fff; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+  }
+  .check.on { background: var(--green); border-color: var(--green); }
+  .check:disabled { opacity: 0.35; cursor: default; }
+  .ep-title {
+    flex: 1; min-width: 0; background: none; border: none; padding: 0; text-align: left; cursor: pointer;
+    font: inherit; font-size: 0.92rem; color: var(--text); display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px;
+  }
+  .ep.done .ep-title { color: var(--muted); }
+  .ep-num { font-family: 'Nunito', sans-serif; font-weight: 800; }
+  .ep-date { flex-basis: 100%; font-size: 0.78rem; color: var(--muted); }
+  .note-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--purple); display: inline-block; align-self: center; }
+  .ep-body { padding: 0 12px 12px 50px; }
+  @media (max-width: 420px) { .ep-body { padding-left: 12px; } }
+
+  .watch-list { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; }
+  .watch-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; font-size: 0.92rem; }
+  .watch-row + .watch-row { border-top: 1px solid var(--border); }
+  .log-row { display: flex; gap: 8px; }
+  .log-row .input { flex: 1; }
 </style>
 </head>
 <body>
@@ -319,7 +391,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, deleteDoc, collection, writeBatch, serverTimestamp,
-  query, where, onSnapshot
+  query, where, onSnapshot, deleteField, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 // ---------- Config ----------
@@ -420,11 +492,25 @@ const S = {
   search: { q: '', results: [], loading: false, error: '', done: false, reqId: 0 },
   detailCache: {},          // 'tv_123' -> details from Worker
   providerCatalog: null,    // full US provider list for My Services
+  seasonCache: {},          // 'tmdbId_season' -> { episodes: [...] } or { loading } / { error }
+  lib: loadLibFilter(),     // Library filters
   modal: null               // { view: 'detail' | 'add' | 'services', ... }
 };
 
 let unsubPlaylists = null;
 let unsubItems = {};
+let unsubPeople = null;
+
+function loadLibFilter() {
+  const def = { type: 'all', status: 'all', platform: 'all' };
+  try {
+    const v = JSON.parse(localStorage.getItem('ww_lib') || 'null');
+    return v ? Object.assign(def, v) : def;
+  } catch (e) { return def; }
+}
+function saveLibFilter() {
+  try { localStorage.setItem('ww_lib', JSON.stringify(S.lib)); } catch (e) { /* ignore */ }
+}
 
 // ---------- Utils ----------
 function esc(s) {
@@ -550,8 +636,95 @@ function stopListeners() {
 function onDataChange() {
   if (S.screen !== 'app') return;
   render();
-  // Refresh the detail view (membership may have changed), but never re-render a form mid-edit
-  if (S.modal && S.modal.view === 'detail') renderModal();
+  // Refresh the detail view (membership or progress may have changed); the add form is never re-rendered mid-edit
+  if (S.modal && S.modal.view === 'detail') {
+    ensureCtx();
+    renderModal();
+  }
+}
+
+// Picks which playlist's copy of this title the detail sheet tracks, and listens to its notes
+function ensureCtx() {
+  const m = S.modal;
+  if (!m || !m.key) return;
+  const mem = memberships(m.key);
+  if (!mem.length) {
+    m.ctxPid = null;
+    stopPeople();
+    m.people = {};
+    return;
+  }
+  if (!m.ctxPid || !mem.some(x => x.playlist.id === m.ctxPid)) {
+    const preferred = m.preferPid && mem.find(x => x.playlist.id === m.preferPid);
+    m.ctxPid = (preferred || mem[0]).playlist.id;
+  }
+  if (m.peopleFor !== m.ctxPid) startPeople(m.ctxPid, m.key);
+  initSeason();
+}
+
+function startPeople(pid, key) {
+  stopPeople();
+  const m = S.modal;
+  m.peopleFor = pid;
+  m.people = {};
+  unsubPeople = onSnapshot(collection(db, 'playlists', pid, 'items', key, 'people'), (snap) => {
+    if (!S.modal || S.modal.key !== key || S.modal.peopleFor !== pid) return;
+    const people = {};
+    snap.docs.forEach(d => { people[d.id] = d.data(); });
+    S.modal.people = people;
+    if (S.modal.view === 'detail') renderModal();
+  }, (err) => console.error('[WW] people listener', err));
+}
+
+function stopPeople() {
+  if (unsubPeople) { unsubPeople(); unsubPeople = null; }
+  if (S.modal) S.modal.peopleFor = null;
+}
+
+// Chooses the starting season (where "up next" is) and loads the episodes needed on screen
+function initSeason() {
+  const m = S.modal;
+  const d = m && m.data;
+  if (!d || d.mediaType !== 'tv' || !(d.seasonList || []).length) return;
+  const item = ctxItem();
+  if (!m.season) {
+    const nk = item ? nextUpKey(item) : null;
+    const pk = item ? previousKey(item) : null;
+    const anchor = parseEpKey(nk || pk);
+    m.season = anchor ? anchor.s : d.seasonList[0].number;
+  }
+  loadSeason(d.tmdbId, m.season);
+  if (item) {
+    [nextUpKey(item), previousKey(item)].forEach(k => {
+      const p = parseEpKey(k);
+      if (p) loadSeason(d.tmdbId, p.s);
+    });
+  }
+}
+
+// Keeps stored show metadata (episode counts, latest aired) current so progress stays accurate
+function refreshStoredItems(d) {
+  memberships(itemKey(d.mediaType, d.tmdbId)).forEach(x => {
+    const it = x.item;
+    const fields = { title: d.title, posterPath: d.posterPath || null };
+    if (d.mediaType === 'tv') Object.assign(fields, tvMeta(d));
+    const changed = Object.keys(fields).some(k => JSON.stringify(it[k] == null ? null : it[k]) !== JSON.stringify(fields[k]));
+    if (!changed) return;
+    fields.lastRefreshed = serverTimestamp();
+    setDoc(doc(db, 'playlists', x.playlist.id, 'items', it.id), fields, { merge: true })
+      .catch(e => console.error('[WW] refresh item failed', e));
+  });
+}
+
+function tvMeta(d) {
+  const counts = {};
+  (d.seasonList || []).forEach(se => { counts[String(se.number)] = se.episodeCount; });
+  return {
+    seasonCounts: counts,
+    lastAired: d.lastAired ? { s: d.lastAired.s, e: d.lastAired.e } : null,
+    nextAir: d.nextAir || null,
+    showStatus: d.status || ''
+  };
 }
 
 // Where is this title? -> [{ playlist, item }]
@@ -562,6 +735,76 @@ function memberships(key) {
     if (it) out.push({ playlist: pl, item: it });
   });
   return out;
+}
+
+// ---------- Episode progress helpers ----------
+function epKey(s, e) {
+  return 's' + s + 'e' + e;
+}
+function parseEpKey(k) {
+  const m = /^s(\d+)e(\d+)$/.exec(k || '');
+  return m ? { s: parseFloat(m[1]), e: parseFloat(m[2]) } : null;
+}
+function epLabel(k) {
+  const p = parseEpKey(k);
+  return p ? 'S' + p.s + ' E' + p.e : '';
+}
+function todayIso() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Every aired episode key, in order, based on the item's stored season counts
+function airedKeys(item) {
+  const out = [];
+  if (!item || !item.seasonCounts || !item.lastAired) return out;
+  const la = item.lastAired;
+  Object.keys(item.seasonCounts).map(x => parseFloat(x)).sort((a, b) => a - b).forEach(sn => {
+    if (sn > la.s) return;
+    const count = sn === la.s ? la.e : parseFloat(item.seasonCounts[sn]) || 0;
+    for (let e = 1; e <= count; e++) out.push(epKey(sn, e));
+  });
+  return out;
+}
+function isWatched(item, k) {
+  return !!(item && item.watched && item.watched[k]);
+}
+function progressOf(item) {
+  const keys = airedKeys(item);
+  const watched = keys.filter(k => isWatched(item, k)).length;
+  return { watched: watched, aired: keys.length };
+}
+function nextUpKey(item) {
+  return airedKeys(item).find(k => !isWatched(item, k)) || null;
+}
+// The episode to recap: the one right before "up next", or the latest if caught up
+function previousKey(item) {
+  const keys = airedKeys(item);
+  const next = nextUpKey(item);
+  const idx = next ? keys.indexOf(next) : keys.length;
+  const k = idx > 0 ? keys[idx - 1] : null;
+  return k && isWatched(item, k) ? k : null;
+}
+function seasonCacheKey(tmdbId, sn) {
+  return tmdbId + '_' + sn;
+}
+function findEpisode(tmdbId, k) {
+  const p = parseEpKey(k);
+  if (!p) return null;
+  const c = S.seasonCache[seasonCacheKey(tmdbId, p.s)];
+  return (c && c.episodes) ? (c.episodes.find(x => x.e === p.e) || null) : null;
+}
+async function loadSeason(tmdbId, sn) {
+  const ck = seasonCacheKey(tmdbId, sn);
+  if (S.seasonCache[ck] && !S.seasonCache[ck].error) return;
+  S.seasonCache[ck] = { loading: true };
+  try {
+    const d = await api('season', { tmdbId: tmdbId, season: sn });
+    S.seasonCache[ck] = { episodes: d.episodes || [] };
+  } catch (e) {
+    S.seasonCache[ck] = { error: e.message };
+  }
+  if (S.modal && S.modal.view === 'detail' && S.modal.tmdbId === tmdbId) renderModal();
 }
 
 // ---------- Views ----------
@@ -686,6 +929,85 @@ function viewHome() {
   return h;
 }
 
+function libStatusOptions() {
+  const t = S.lib.type;
+  if (t === 'tv') return STATUS.tv;
+  if (t === 'movie') return STATUS.movie;
+  // Union, in display order
+  const all = STATUS.tv.concat(STATUS.movie);
+  const seen = {};
+  return STATUS_ORDER.map(id => all.find(x => x.id === id)).filter(x => x && !seen[x.id] && (seen[x.id] = true));
+}
+
+function libPlatformOptions() {
+  const byId = {};
+  let hasNone = false;
+  Object.keys(S.items).forEach(pid => (S.items[pid] || []).forEach(it => {
+    if (it.platform && it.platform.id != null) byId[String(it.platform.id)] = it.platform.name;
+    else hasNone = true;
+  }));
+  const out = Object.keys(byId).map(id => ({ id: id, name: byId[id] }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (hasNone) out.push({ id: 'none', name: 'Not set' });
+  return out;
+}
+
+function passesLibFilter(it) {
+  const f = S.lib;
+  if (f.type !== 'all' && it.mediaType !== f.type) return false;
+  if (f.status !== 'all' && it.status !== f.status) return false;
+  if (f.platform !== 'all') {
+    const pid = it.platform && it.platform.id != null ? String(it.platform.id) : 'none';
+    if (pid !== f.platform) return false;
+  }
+  return true;
+}
+
+function libraryFiltersHtml() {
+  const f = S.lib;
+  let h = '<div class="lib-filters">';
+  h += '<div class="seg" role="group" aria-label="Type">';
+  [['all', 'All'], ['tv', 'TV'], ['movie', 'Movies']].forEach(o => {
+    h += '<button type="button" class="' + (f.type === o[0] ? 'on' : '') + '" aria-pressed="' + (f.type === o[0]) + '" onclick="setLibFilter(\'type\', \'' + o[0] + '\')">' + o[1] + '</button>';
+  });
+  h += '</div>';
+  h += '<select class="input" aria-label="Status" onchange="setLibFilter(\'status\', this.value)">';
+  h += '<option value="all">All statuses</option>';
+  libStatusOptions().forEach(o => {
+    h += '<option value="' + o.id + '"' + (f.status === o.id ? ' selected' : '') + '>' + esc(o.label) + '</option>';
+  });
+  h += '</select>';
+  h += '<select class="input" aria-label="Platform" onchange="setLibFilter(\'platform\', this.value)">';
+  h += '<option value="all">All platforms</option>';
+  libPlatformOptions().forEach(o => {
+    h += '<option value="' + esc(o.id) + '"' + (f.platform === o.id ? ' selected' : '') + '>' + esc(o.name) + '</option>';
+  });
+  h += '</select>';
+  h += '</div>';
+  return h;
+}
+
+function libraryTileHtml(it, pid) {
+  let h = '<button type="button" class="tile" onclick="openDetail(\'' + it.mediaType + '\',' + parseFloat(it.tmdbId) + ',\'' + pid + '\')">';
+  h += posterHtml(it.posterPath, it.title, false);
+  h += '<h3 style="font-size:0.95rem;margin-top:8px;line-height:1.3">' + esc(it.title) + '</h3>';
+  h += '<div class="meta small"><span class="status ' + esc(it.status) + '">' + esc(statusLabel(it.mediaType, it.status)) + '</span>';
+  if (it.platform && it.platform.name) h += ' <span class="muted">' + esc(it.platform.name) + '</span>';
+  h += '</div>';
+  if (it.mediaType === 'tv') {
+    const pr = progressOf(it);
+    if (pr.aired) {
+      const pct = Math.round((pr.watched / pr.aired) * 100);
+      h += '<div class="progress" aria-hidden="true"><span style="width:' + pct + '%"></span></div>';
+      h += '<div class="meta small muted">' + (pr.watched >= pr.aired ? 'Caught up' : pr.watched + ' of ' + pr.aired + ' episodes') + '</div>';
+    }
+  } else if (Array.isArray(it.watchDates) && it.watchDates.length) {
+    h += '<div class="meta small muted">Watched ' + it.watchDates.length + (it.watchDates.length === 1 ? ' time' : ' times') + '</div>';
+  }
+  h += '</button>';
+  return h;
+}
+
 function viewLibrary() {
   let h = '<div class="page-head"><h1>Library</h1></div>';
   h += msgHtml();
@@ -693,27 +1015,31 @@ function viewLibrary() {
     h += '<div class="loading" style="min-height:160px"><div class="spinner" aria-label="Loading"></div></div>';
     return h;
   }
+  h += libraryFiltersHtml();
+  const filtering = S.lib.type !== 'all' || S.lib.status !== 'all' || S.lib.platform !== 'all';
   S.playlists.forEach(pl => {
-    const items = (S.items[pl.id] || []).slice().sort((a, b) => {
+    const all = S.items[pl.id] || [];
+    const items = all.filter(passesLibFilter).sort((a, b) => {
       const sa = STATUS_ORDER.indexOf(a.status), sb = STATUS_ORDER.indexOf(b.status);
       if (sa !== sb) return sa - sb;
       return String(a.title).localeCompare(String(b.title));
     });
     h += '<div class="pl-head"><span class="dot" style="background:' + esc(pl.color || '#4CAF50') + '"></span>';
-    h += '<h2>' + esc(pl.name) + '</h2><span class="count">' + items.length + (items.length === 1 ? ' title' : ' titles') + '</span></div>';
-    if (!items.length) {
+    h += '<h2>' + esc(pl.name) + '</h2><span class="count">';
+    h += filtering ? items.length + ' of ' + all.length : all.length + (all.length === 1 ? ' title' : ' titles');
+    h += '</span></div>';
+    if (!all.length) {
       h += '<div class="card empty"><p class="muted">Nothing here yet. Search for a show or movie and add it to this list.</p>';
       h += '<button class="btn" onclick="setTab(\'search\')">Search</button></div>';
       return;
     }
+    if (!items.length) {
+      h += '<div class="card empty"><p class="muted">No titles in ' + esc(pl.name) + ' match these filters.</p>';
+      h += '<button class="btn secondary" onclick="clearLibFilters()">Clear filters</button></div>';
+      return;
+    }
     h += '<div class="results">';
-    items.forEach(it => {
-      h += '<button type="button" class="tile" onclick="openDetail(\'' + it.mediaType + '\',' + parseFloat(it.tmdbId) + ')">';
-      h += posterHtml(it.posterPath, it.title, false);
-      h += '<h3 style="font-size:0.95rem;margin-top:8px;line-height:1.3">' + esc(it.title) + '</h3>';
-      h += '<div class="meta small"><span class="status ' + esc(it.status) + '">' + esc(statusLabel(it.mediaType, it.status)) + '</span></div>';
-      h += '</button>';
-    });
+    items.forEach(it => { h += libraryTileHtml(it, pl.id); });
     h += '</div>';
   });
   return h;
@@ -873,6 +1199,199 @@ function statusSelectHtml(id, mediaType, current, onchange) {
   return h;
 }
 
+function ctxItem() {
+  const m = S.modal;
+  if (!m || !m.ctxPid) return null;
+  return findItem(m.ctxPid, m.key);
+}
+function myPeopleDoc() {
+  const m = S.modal;
+  return (m && m.people && S.user) ? (m.people[S.user.uid] || {}) : {};
+}
+function otherPeople() {
+  const m = S.modal;
+  if (!m || !m.people || !S.user) return [];
+  return Object.keys(m.people).filter(uid => uid !== S.user.uid).map(uid => Object.assign({ uid: uid }, m.people[uid]));
+}
+function draftOr(k, fallback) {
+  const d = S.modal.drafts || {};
+  return Object.prototype.hasOwnProperty.call(d, k) ? d[k] : (fallback || '');
+}
+
+function starsHtml(current) {
+  let h = '<div class="stars" role="group" aria-label="Your rating">';
+  for (let i = 1; i <= 5; i++) {
+    const on = current && i <= current;
+    h += '<button type="button" class="star' + (on ? ' on' : '') + '" aria-label="' + i + (i === 1 ? ' star' : ' stars') + '" aria-pressed="' + (current === i) + '" onclick="setMyRating(' + i + ')">' + (on ? '&#9733;' : '&#9734;') + '</button>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function noteEditorHtml(draftKey, stored, placeholder, saveCall) {
+  const id = 'note_' + draftKey;
+  const val = draftOr(draftKey, stored);
+  const dirty = val !== (stored || '');
+  let h = '<textarea class="input note" id="' + esc(id) + '" rows="3" placeholder="' + esc(placeholder) + '" oninput="setDraft(\'' + draftKey + '\', this.value)">' + esc(val) + '</textarea>';
+  h += '<div class="note-actions"><button class="btn small" onclick="' + saveCall + '"' + (dirty ? '' : ' disabled') + ' id="save_' + esc(draftKey) + '">Save note</button></div>';
+  return h;
+}
+
+function othersNotesHtml(getter) {
+  let h = '';
+  otherPeople().forEach(p => {
+    const n = getter(p);
+    if (n) h += '<div class="other-note"><strong>' + esc(p.name || 'Someone') + ':</strong> ' + esc(n) + '</div>';
+  });
+  return h;
+}
+
+function trackingSwitcherHtml(mem) {
+  if (mem.length < 2) return '';
+  let h = '<div class="choice-row" style="margin-bottom:12px">';
+  mem.forEach(x => {
+    const on = S.modal.ctxPid === x.playlist.id;
+    h += '<button type="button" class="choice' + (on ? ' on' : '') + '" onclick="setCtx(\'' + x.playlist.id + '\')"><span class="dot" style="background:' + esc(x.playlist.color || '#4CAF50') + '"></span>' + esc(x.playlist.name) + '</button>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function episodeOverview(ep) {
+  return ep && ep.overview ? ep.overview : 'No synopsis yet. These usually appear a day or two after an episode airs.';
+}
+
+function tvProgressHtml(d, item) {
+  const m = S.modal;
+  const pr = progressOf(item);
+  let h = '';
+  if (pr.aired) {
+    const pct = Math.round((pr.watched / pr.aired) * 100);
+    h += '<div class="progress big" aria-hidden="true"><span style="width:' + pct + '%"></span></div>';
+    h += '<div class="small muted" style="margin-bottom:12px">' + (pr.watched >= pr.aired ? 'Caught up on all ' + pr.aired + ' aired episodes' : pr.watched + ' of ' + pr.aired + ' aired episodes watched') + '</div>';
+  }
+
+  const prevK = previousKey(item);
+  if (prevK) {
+    const ep = findEpisode(d.tmdbId, prevK);
+    h += '<div class="recap"><div class="recap-label">Previously on ' + esc(d.title) + '</div>';
+    h += '<h3>' + esc(epLabel(prevK)) + (ep && ep.name ? ': ' + esc(ep.name) : '') + '</h3>';
+    h += ep ? '<p class="small">' + esc(episodeOverview(ep)) + '</p>' : '<p class="small muted">Loading…</p>';
+    h += '</div>';
+  }
+
+  const nextK = nextUpKey(item);
+  if (nextK) {
+    const ep = findEpisode(d.tmdbId, nextK);
+    h += '<div class="upnext"><div><div class="recap-label">Up next</div>';
+    h += '<h3>' + esc(epLabel(nextK)) + (ep && ep.name ? ': ' + esc(ep.name) : '') + '</h3></div>';
+    h += '<button class="btn small" onclick="toggleEp(\'' + nextK + '\')">Mark watched</button></div>';
+  } else if (item.nextAir) {
+    h += '<div class="upnext"><div><div class="recap-label">Next episode</div>';
+    h += '<h3>' + esc(epLabel(epKey(item.nextAir.s, item.nextAir.e))) + (item.nextAir.name ? ': ' + esc(item.nextAir.name) : '') + '</h3>';
+    if (item.nextAir.date) h += '<div class="small muted">Airs ' + esc(fmtDate(item.nextAir.date)) + '</div>';
+    h += '</div></div>';
+  }
+  return h;
+}
+
+function episodesHtml(d, item) {
+  const m = S.modal;
+  const seasons = d.seasonList || [];
+  if (!seasons.length) return '';
+  const sn = m.season || seasons[0].number;
+  const me = myPeopleDoc();
+  let h = '<div class="section"><h3>Episodes</h3>';
+  h += '<div class="season-tabs" role="tablist">';
+  seasons.forEach(se => {
+    h += '<button type="button" class="' + (se.number === sn ? 'on' : '') + '" onclick="setSeason(' + se.number + ')">S' + se.number + '</button>';
+  });
+  h += '</div>';
+
+  const cache = S.seasonCache[seasonCacheKey(d.tmdbId, sn)];
+  if (!cache || cache.loading) return h + '<div class="loading" style="min-height:120px"><div class="spinner" aria-label="Loading episodes"></div></div></div>';
+  if (cache.error) return h + '<div class="msg error" role="alert">Couldn\'t load episodes: ' + esc(cache.error) + '</div></div>';
+
+  const today = todayIso();
+  const eps = cache.episodes;
+  const airedInSeason = eps.filter(ep => ep.airDate && ep.airDate <= today);
+  const allWatched = airedInSeason.length && airedInSeason.every(ep => isWatched(item, epKey(sn, ep.e)));
+
+  // Season note + mark season
+  const seasonNote = me.seasons && me.seasons[sn] ? me.seasons[sn].note : '';
+  h += '<div class="season-bar">';
+  if (airedInSeason.length && !allWatched) h += '<button class="link-btn" onclick="markSeason(' + sn + ')">Mark season ' + sn + ' watched</button>';
+  h += '<button class="link-btn" onclick="toggleSeasonNote()">' + (m.seasonNoteOpen ? 'Hide season note' : (seasonNote ? 'Season note' : 'Add season note')) + '</button>';
+  h += '</div>';
+  if (m.seasonNoteOpen) {
+    h += '<div class="note-box">' + noteEditorHtml('season_' + sn, seasonNote, 'Thoughts on season ' + sn + '…', 'saveNote(\'season\', \'' + sn + '\')');
+    h += othersNotesHtml(p => p.seasons && p.seasons[sn] ? p.seasons[sn].note : '') + '</div>';
+  }
+
+  h += '<div class="eps">';
+  eps.forEach(ep => {
+    const k = epKey(sn, ep.e);
+    const watched = isWatched(item, k);
+    const future = !ep.airDate || ep.airDate > today;
+    const open = m.openEp === k;
+    const myNote = me.episodes && me.episodes[k] ? me.episodes[k].note : '';
+    const hasOtherNote = otherPeople().some(p => p.episodes && p.episodes[k] && p.episodes[k].note);
+    h += '<div class="ep' + (watched ? ' done' : '') + (open ? ' open' : '') + '">';
+    h += '<div class="ep-row">';
+    h += '<button type="button" class="check' + (watched ? ' on' : '') + '" aria-label="' + (watched ? 'Mark unwatched' : 'Mark watched') + ': ' + esc(epLabel(k)) + '"' + (future ? ' disabled' : '') + ' onclick="toggleEp(\'' + k + '\')">' + (watched ? '&#10003;' : '') + '</button>';
+    h += '<button type="button" class="ep-title" onclick="toggleEpOpen(\'' + k + '\')" aria-expanded="' + open + '">';
+    h += '<span class="ep-num">E' + ep.e + '</span> ' + esc(ep.name || 'Episode ' + ep.e);
+    if (myNote || hasOtherNote) h += ' <span class="note-dot" title="Has notes"></span>';
+    h += '<span class="ep-date">' + (ep.airDate ? (future ? 'Airs ' : '') + esc(fmtDate(ep.airDate)) : 'Date TBA') + '</span>';
+    h += '</button></div>';
+    if (open) {
+      h += '<div class="ep-body"><p class="small">' + esc(episodeOverview(ep)) + '</p>';
+      if (!future && !watched) h += '<button class="link-btn small" style="margin-bottom:10px" onclick="markThrough(\'' + k + '\')">Mark all watched through ' + esc(epLabel(k)) + '</button>';
+      h += noteEditorHtml('ep_' + k, myNote, 'Your notes on this episode…', 'saveNote(\'episode\', \'' + k + '\')');
+      h += othersNotesHtml(p => p.episodes && p.episodes[k] ? p.episodes[k].note : '');
+      h += '</div>';
+    }
+    h += '</div>';
+  });
+  h += '</div></div>';
+  return h;
+}
+
+function myTakeHtml(d) {
+  const me = myPeopleDoc();
+  const show = me.show || {};
+  let h = '<div class="section"><h3>Your take</h3>';
+  h += starsHtml(show.rating || 0);
+  h += noteEditorHtml('show', show.note || '', 'Your notes on ' + d.title + '…', 'saveNote(\'show\', \'\')');
+  const others = otherPeople().filter(p => p.show && (p.show.rating || p.show.note));
+  others.forEach(p => {
+    h += '<div class="other-note"><strong>' + esc(p.name || 'Someone') + ':</strong> ';
+    if (p.show.rating) h += '<span class="stars-static">' + '&#9733;'.repeat(p.show.rating) + '</span> ';
+    if (p.show.note) h += esc(p.show.note);
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function movieWatchesHtml(item) {
+  const dates = (Array.isArray(item.watchDates) ? item.watchDates.slice() : []).sort().reverse();
+  let h = '<div class="section"><h3>Watch history</h3>';
+  if (dates.length) {
+    h += '<div class="watch-list">';
+    dates.forEach(dt => {
+      h += '<div class="watch-row"><span>' + esc(fmtDate(dt)) + '</span><button class="remove-btn" style="margin:0" onclick="removeWatch(\'' + esc(dt) + '\')">Remove</button></div>';
+    });
+    h += '</div>';
+  } else {
+    h += '<p class="small muted">Log each time you watch it, including rewatches.</p>';
+  }
+  h += '<div class="log-row"><input class="input" type="date" id="watchDate" value="' + todayIso() + '" max="' + todayIso() + '" aria-label="Date watched">';
+  h += '<button class="btn small" onclick="logWatch()">Log a watch</button></div>';
+  h += '</div>';
+  return h;
+}
+
 function viewDetailModal() {
   const m = S.modal;
   let h = sheetTop('', false);
@@ -899,8 +1418,15 @@ function viewDetailModal() {
   if (d.overview) h += '<p class="d-overview">' + esc(d.overview) + '</p>';
   if (m.error2) h += '<div class="msg error" role="alert">' + esc(m.error2) + '</div>';
 
-  // In your lists
   const mem = memberships(m.key);
+  const item = ctxItem();
+
+  // Progress / recap (TV) before list management, since it's what you open the sheet for
+  if (item && d.mediaType === 'tv') {
+    h += '<div class="section"><h3>Your progress</h3>' + trackingSwitcherHtml(mem) + tvProgressHtml(d, item) + '</div>';
+  }
+
+  // In your lists
   const available = S.playlists.filter(pl => !mem.some(x => x.playlist.id === pl.id));
   h += '<div class="section"><h3>' + (mem.length ? 'In your lists' : 'Add to a list') + '</h3>';
   mem.forEach(x => {
@@ -917,6 +1443,15 @@ function viewDetailModal() {
     h += '<button class="btn block" style="margin-top:' + (mem.length ? '6px' : '0') + '" onclick="showAdd()">' + (mem.length ? 'Add to another list' : 'Add to a list') + '</button>';
   }
   h += '</div>';
+
+  if (item) {
+    if (d.mediaType === 'movie') {
+      if (mem.length > 1) h += '<div class="section"><h3>Tracking in</h3>' + trackingSwitcherHtml(mem) + '</div>';
+      h += movieWatchesHtml(item);
+    }
+    h += myTakeHtml(d);
+    if (d.mediaType === 'tv') h += episodesHtml(d, item);
+  }
 
   h += whereToWatchHtml(d);
   return h;
@@ -1017,10 +1552,26 @@ function renderModal() {
   const sheet = root.querySelector('.sheet');
   const sameView = sheet && sheet.getAttribute('data-view') === m.view + ':' + (m.key || '');
   const scrollTop = sheet ? sheet.scrollTop : 0;
+  // Remember what's focused (e.g. a note being typed) so live updates don't interrupt typing
+  const ae = document.activeElement;
+  const focusId = (ae && ae.id && root.contains(ae)) ? ae.id : null;
+  let selStart = null, selEnd = null;
+  try {
+    if (focusId && ae.selectionStart != null) { selStart = ae.selectionStart; selEnd = ae.selectionEnd; }
+  } catch (e) { /* date/select inputs have no text selection */ }
   root.innerHTML = '<div class="overlay" onclick="if (event.target === this) closeModal()"><div class="sheet" role="dialog" aria-modal="true" data-view="' + esc(m.view + ':' + (m.key || '')) + '">' + inner + '</div></div>';
   document.body.style.overflow = 'hidden';
   const newSheet = root.querySelector('.sheet');
   if (newSheet && sameView) newSheet.scrollTop = scrollTop;
+  if (focusId && sameView) {
+    const el = document.getElementById(focusId);
+    if (el) {
+      el.focus({ preventScroll: true });
+      if (selStart != null && typeof el.setSelectionRange === 'function') {
+        try { el.setSelectionRange(selStart, selEnd); } catch (e) { /* not a text field */ }
+      }
+    }
+  }
 }
 
 function render() {
@@ -1177,16 +1728,24 @@ window.runSearch = async function () {
 };
 
 // ----- Detail -----
-window.openDetail = async function (mediaType, tmdbId) {
+window.openDetail = async function (mediaType, tmdbId, preferPid) {
   const key = itemKey(mediaType, tmdbId);
-  S.modal = { view: 'detail', key: key, mediaType: mediaType, tmdbId: tmdbId, data: S.detailCache[key] || null, error: '' };
+  stopPeople();
+  S.modal = {
+    view: 'detail', key: key, mediaType: mediaType, tmdbId: tmdbId,
+    data: S.detailCache[key] || null, error: '', preferPid: preferPid || null,
+    ctxPid: null, people: {}, drafts: {}, season: null, openEp: null, seasonNoteOpen: false
+  };
+  if (S.modal.data) ensureCtx();
   renderModal();
   if (S.detailCache[key]) return;
   try {
     const d = await api('details', { mediaType: mediaType, tmdbId: tmdbId });
     S.detailCache[key] = d;
+    refreshStoredItems(d);
     if (S.modal && S.modal.key === key) {
       S.modal.data = d;
+      ensureCtx();
       renderModal();
     }
   } catch (e) {
@@ -1198,6 +1757,7 @@ window.openDetail = async function (mediaType, tmdbId) {
 };
 
 window.closeModal = function () {
+  stopPeople();
   S.modal = null;
   renderModal();
 };
@@ -1207,6 +1767,7 @@ window.modalBack = function () {
   S.modal.view = 'detail';
   S.modal.error2 = '';
   S.modal.saving = false;
+  ensureCtx();
   renderModal();
 };
 
@@ -1249,6 +1810,195 @@ window.removeItem = async function (pid) {
     m.error2 = 'Couldn\'t remove it: ' + e.message;
     renderModal();
   }
+};
+
+// ----- Tracking -----
+window.setCtx = function (pid) {
+  const m = S.modal;
+  if (!m) return;
+  m.preferPid = pid;
+  m.ctxPid = pid;
+  m.season = null;
+  m.openEp = null;
+  ensureCtx();
+  renderModal();
+};
+
+window.setSeason = function (sn) {
+  const m = S.modal;
+  m.season = sn;
+  m.openEp = null;
+  m.seasonNoteOpen = false;
+  loadSeason(m.data.tmdbId, sn);
+  renderModal();
+};
+
+window.toggleEpOpen = function (k) {
+  const m = S.modal;
+  m.openEp = m.openEp === k ? null : k;
+  renderModal();
+};
+
+window.toggleSeasonNote = function () {
+  S.modal.seasonNoteOpen = !S.modal.seasonNoteOpen;
+  renderModal();
+};
+
+function itemRef() {
+  const m = S.modal;
+  return doc(db, 'playlists', m.ctxPid, 'items', m.key);
+}
+
+// Status to set after marking episodes: start "Watching", or "Finished" when an ended show is complete
+function statusAfterWatching(item, newlyWatched) {
+  const keys = airedKeys(item);
+  const done = keys.length && keys.every(k => isWatched(item, k) || newlyWatched.indexOf(k) !== -1);
+  const ended = /ended|canceled|cancelled/i.test(item.showStatus || '');
+  if (done && ended) return 'finished';
+  if (item.status === 'want') return 'watching';
+  return null;
+}
+
+async function markEpisodes(keys) {
+  const m = S.modal;
+  const item = ctxItem();
+  if (!item || !keys.length) return;
+  const watched = {};
+  keys.forEach(k => { watched[k] = serverTimestamp(); });
+  const fields = { watched: watched, updatedAt: serverTimestamp() };
+  const next = statusAfterWatching(item, keys);
+  if (next && next !== item.status) fields.status = next;
+  try {
+    await setDoc(itemRef(), fields, { merge: true });
+  } catch (e) {
+    m.error2 = 'Couldn\'t save progress: ' + e.message;
+    renderModal();
+  }
+}
+
+window.toggleEp = async function (k) {
+  const m = S.modal;
+  const item = ctxItem();
+  if (!item) return;
+  if (isWatched(item, k)) {
+    try {
+      const w = {};
+      w[k] = deleteField();
+      await setDoc(itemRef(), { watched: w, updatedAt: serverTimestamp() }, { merge: true });
+    } catch (e) {
+      m.error2 = 'Couldn\'t save progress: ' + e.message;
+      renderModal();
+    }
+  } else {
+    await markEpisodes([k]);
+  }
+};
+
+window.markThrough = function (k) {
+  const item = ctxItem();
+  const keys = airedKeys(item);
+  const idx = keys.indexOf(k);
+  if (idx === -1) return;
+  const todo = keys.slice(0, idx + 1).filter(x => !isWatched(item, x));
+  if (todo.length > 1 && !confirm('Mark ' + todo.length + ' episodes as watched?')) return;
+  markEpisodes(todo);
+};
+
+window.markSeason = function (sn) {
+  const item = ctxItem();
+  const todo = airedKeys(item).filter(k => parseEpKey(k).s === sn && !isWatched(item, k));
+  if (!todo.length) return;
+  if (!confirm('Mark ' + todo.length + ' episodes in season ' + sn + ' as watched?')) return;
+  markEpisodes(todo);
+};
+
+// ----- Notes & ratings (per person) -----
+window.setDraft = function (k, v) {
+  const m = S.modal;
+  m.drafts = m.drafts || {};
+  m.drafts[k] = v;
+  const btn = document.getElementById('save_' + k);
+  if (btn) btn.disabled = false;
+};
+
+function peopleRef() {
+  const m = S.modal;
+  return doc(db, 'playlists', m.ctxPid, 'items', m.key, 'people', S.user.uid);
+}
+
+async function savePeople(fields) {
+  const m = S.modal;
+  if (!m || !m.ctxPid) return false;
+  try {
+    await setDoc(peopleRef(), Object.assign({
+      name: (S.profile && S.profile.displayName) || '',
+      updatedAt: serverTimestamp()
+    }, fields), { merge: true });
+    return true;
+  } catch (e) {
+    m.error2 = 'Couldn\'t save: ' + e.message;
+    renderModal();
+    return false;
+  }
+}
+
+window.saveNote = async function (scope, id) {
+  const m = S.modal;
+  const draftKey = scope === 'show' ? 'show' : (scope === 'season' ? 'season_' + id : 'ep_' + id);
+  const text = String((m.drafts || {})[draftKey] || '').trim();
+  const value = text ? text : deleteField();
+  let fields;
+  if (scope === 'show') fields = { show: { note: value } };
+  else if (scope === 'season') { const x = {}; x[id] = { note: value }; fields = { seasons: x }; }
+  else { const x = {}; x[id] = { note: value }; fields = { episodes: x }; }
+  const ok = await savePeople(fields);
+  if (ok && S.modal === m) {
+    delete m.drafts[draftKey];
+    renderModal();
+  }
+};
+
+window.setMyRating = function (n) {
+  const current = (myPeopleDoc().show || {}).rating || 0;
+  savePeople({ show: { rating: current === n ? deleteField() : n } });
+};
+
+// ----- Movie watch history -----
+window.logWatch = async function () {
+  const m = S.modal;
+  const date = val('watchDate') || todayIso();
+  try {
+    await setDoc(itemRef(), { watchDates: arrayUnion(date), status: 'watched', updatedAt: serverTimestamp() }, { merge: true });
+  } catch (e) {
+    m.error2 = 'Couldn\'t log that watch: ' + e.message;
+    renderModal();
+  }
+};
+
+window.removeWatch = async function (date) {
+  const m = S.modal;
+  if (!confirm('Remove the watch on ' + fmtDate(date) + '?')) return;
+  try {
+    await setDoc(itemRef(), { watchDates: arrayRemove(date), updatedAt: serverTimestamp() }, { merge: true });
+  } catch (e) {
+    m.error2 = 'Couldn\'t remove it: ' + e.message;
+    renderModal();
+  }
+};
+
+// ----- Library filters -----
+window.setLibFilter = function (name, value) {
+  S.lib[name] = value;
+  // A status that doesn't exist for the chosen type would hide everything
+  if (name === 'type' && S.lib.status !== 'all' && !libStatusOptions().some(o => o.id === S.lib.status)) S.lib.status = 'all';
+  saveLibFilter();
+  render();
+};
+
+window.clearLibFilters = function () {
+  S.lib = { type: 'all', status: 'all', platform: 'all' };
+  saveLibFilter();
+  render();
 };
 
 // ----- Add -----
@@ -1306,7 +2056,13 @@ window.saveAdd = async function () {
     updatedAt: serverTimestamp(),
     lastRefreshed: serverTimestamp()
   };
-  if (d.mediaType === 'tv') item.dayOffset = 0;
+  if (d.mediaType === 'tv') {
+    item.dayOffset = 0;
+    item.watched = {};
+    Object.assign(item, tvMeta(d));
+  } else {
+    item.watchDates = [];
+  }
   m.saving = true;
   renderModal();
   try {
@@ -1314,6 +2070,8 @@ window.saveAdd = async function () {
     if (S.modal === m) {
       m.view = 'detail';
       m.saving = false;
+      m.ctxPid = f.pid;
+      ensureCtx();
       renderModal();
     }
   } catch (e) {
@@ -1443,6 +2201,7 @@ onAuthStateChanged(auth, async (user) => {
     S.personal = null;
     S.modal = null;
     S.detailCache = {};
+    S.seasonCache = {};
     S.search = { q: '', results: [], loading: false, error: '', done: false, reqId: 0 };
     S.screen = 'auth';
     renderModal();
