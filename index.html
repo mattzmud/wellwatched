@@ -2784,8 +2784,11 @@ async function markEpisodes(keys) {
   const m = S.modal;
   const item = ctxItem();
   if (!item || !keys.length) return;
+  // Device time, not serverTimestamp(): Firestore allows only 500 server timestamps per write,
+  // and long-running shows can have more episodes than that
+  const now = new Date();
   const watched = {};
-  keys.forEach(k => { watched[k] = serverTimestamp(); });
+  keys.forEach(k => { watched[k] = now; });
   const fields = { watched: watched, updatedAt: serverTimestamp() };
   const next = statusAfterWatching(item, keys);
   if (next && next !== item.status) fields.status = next;
@@ -2794,6 +2797,8 @@ async function markEpisodes(keys) {
   } catch (e) {
     m.error2 = 'Couldn\'t save progress: ' + e.message;
     renderModal();
+    const sheet = document.querySelector('#modal .sheet');
+    if (sheet) sheet.scrollTop = 0;
   }
 }
 
@@ -3022,7 +3027,7 @@ window.calToggleEp = async function (pid, itemId, k) {
       await setDoc(ref, { watched: w, updatedAt: serverTimestamp() }, { merge: true });
     } else {
       const w = {};
-      w[k] = serverTimestamp();
+      w[k] = new Date();
       const fields = { watched: w, updatedAt: serverTimestamp() };
       const next = statusAfterWatching(it, [k]);
       if (next && next !== it.status) fields.status = next;
